@@ -5,11 +5,17 @@
 #include <jac/machine/values.h>
 #include <jac/machine/functionFactory.h>
 
-#include <unordered_map>
+#include <map>
 #include <memory>
 #include <array>
+#include <atomic>
+
+#include "../util/capsAllocator.h"
 
 #include "driver/gpio.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "freertos/portmacro.h"
 
 
@@ -77,9 +83,13 @@ namespace detail {
             head = next(head);
             return callback;
         }
+
+        bool empty() {
+            return head == tail;
+        }
     };
 
-    template<class GpioFeature>
+    template<typename Holder>
     class Interrupts {
         static constexpr size_t DEBOUNCE_TIME = 2;
 
@@ -89,10 +99,9 @@ namespace detail {
         gpio_num_t pin;
         TickType_t lastTime = 0;
         bool lastRising = false;
-        GpioFeature* _feature;
-
+        Holder* holder;
     public:
-        Interrupts(gpio_num_t pin, GpioFeature* feature) : pin(pin), _feature(feature) {}
+        Interrupts(gpio_num_t pin, Holder* holder) : pin(pin), holder(holder) {}
 
         std::shared_ptr<Callback_t>& operator[](InterruptMode mode) {
             switch (mode) {
@@ -115,8 +124,8 @@ namespace detail {
             return pin;
         }
 
-        GpioFeature* getFeature() const {
-            return _feature;
+        Holder* getHolder() {
+            return holder;
         }
 
         bool updateLast(bool risingEdge) {
@@ -135,15 +144,75 @@ namespace detail {
 
 template<class GpioFeature>
 class Gpio {
+    struct Holder;
+
     using InterruptQueue_ = detail::InterruptQueue<32>;
-    using Interrupts_ = detail::Interrupts<GpioFeature>;
+    using Interrupts_ = detail::Interrupts<Holder>;
 
-    InterruptQueue_ _interruptQueue;
+    struct Holder {
+        InterruptQueue_ _interruptQueue;
+        std::map<int, Interrupts_> _interruptCallbacks;
+        TaskHandle_t shovelTaskHandle = nullptr;
+    };
+    std::unique_ptr<Holder, EspCapsDeleter<MALLOC_CAP_INTERNAL, Holder>> _holder;
 
-    std::unordered_map<int, std::unique_ptr<Interrupts_>> _interruptCallbacks;
     GpioFeature* _feature;
+    std::atomic<bool> stopShovel{false};
+
+    static void shovel(void* pvParameters) {
+        auto& gpio = *static_cast<Gpio*>(pvParameters);
+        while (true) {
+            auto res = xTaskNotifyWait(pdFALSE, ULONG_MAX, nullptr, portMAX_DELAY);
+            if (gpio.stopShovel) {
+                vTaskDelete(nullptr);
+                return;
+            }
+            if (res == pdFALSE) {
+                continue;
+            }
+            auto& queue = gpio._holder->_interruptQueue;
+            if (queue.empty()) {
+                continue;
+            }
+            auto callback = queue.pop();
+            gpio._feature->scheduleEvent([callback]() {
+                auto now = std::chrono::steady_clock::now();
+                (*callback)(now);
+            });
+        }
+    }
 public:
-    Gpio(GpioFeature* feature) : _feature(feature) {}
+    Gpio(GpioFeature* feature) : _feature(feature) {
+        EspCapsAllocator<MALLOC_CAP_INTERNAL, Holder> alloc;
+        auto mem = alloc.allocate(1);
+        alloc.construct(mem);
+        _holder.reset(mem);
+
+        auto res = xTaskCreate(
+            shovel,
+            "gpio_shovel",
+            2048,
+            this,
+            tskIDLE_PRIORITY + 1,
+            &_holder->shovelTaskHandle
+        );
+        if (res != pdPASS) {
+            throw std::runtime_error("Failed to create GPIO shovel task");
+        }
+    }
+
+    ~Gpio() {
+        stopShovel = true;
+        if (_holder->shovelTaskHandle) {
+            xTaskNotify(_holder->shovelTaskHandle, 0, eNoAction);
+            while (true) {
+                eTaskState state = eTaskGetState(_holder->shovelTaskHandle);
+                if (state == eDeleted || state == eInvalid) {
+                    break;
+                }
+            }
+        }
+    }
 
     void pinMode(int pinNum, PinMode mode) {
         gpio_num_t pin = GpioFeature::getDigitalPin(pinNum);
@@ -184,64 +253,71 @@ public:
     void attachInterrupt(int pinNum, InterruptMode mode, detail::Callback_t callback) {
         gpio_num_t pin = GpioFeature::getInterruptPin(pinNum);
 
-        if (_interruptCallbacks.find(pinNum) == _interruptCallbacks.end()) {
-            _interruptCallbacks[pinNum] = std::make_unique<Interrupts_>(pin, _feature);
+        auto it = _holder->_interruptCallbacks.find(pinNum);
+        if (it == _holder->_interruptCallbacks.end()) {
+            it = _holder->_interruptCallbacks.emplace(
+                std::piecewise_construct,
+                std::forward_as_tuple(pinNum),
+                std::forward_as_tuple(pin, _holder.get())
+            ).first;
             gpio_set_intr_type(pin, GPIO_INTR_ANYEDGE);
             gpio_isr_handler_add(pin, [](void* arg) {
                 auto& callbacks = *static_cast<Interrupts_*>(arg);
-                auto* feature = callbacks.getFeature();
-                auto& interruptQueue = feature->gpio._interruptQueue;
-
-                static auto call = +[](void* arg, GpioFeature::TimePoint timestamp) {
-                    auto& queue = *static_cast<InterruptQueue_*>(arg);
-
-                    auto callback = queue.pop();
-                    if (callback) {
-                        (*callback)(timestamp);
-                    }
-                };
+                auto& holder = *callbacks.getHolder();
+                auto& interruptQueue = holder._interruptQueue;
 
                 bool risingEdge = gpio_get_level(callbacks.getPin()) == 1;
                 if (!callbacks.updateLast(risingEdge)) {
                     return;
                 }
 
+                bool generated = false;
                 if (callbacks[InterruptMode::CHANGE]) {
                     interruptQueue.push(callbacks[InterruptMode::CHANGE]);
-                    feature->scheduleEventISR(call, &interruptQueue);
+                    generated = true;
                 }
                 if (callbacks[InterruptMode::RISING] && risingEdge) {
                     interruptQueue.push(callbacks[InterruptMode::RISING]);
-                    feature->scheduleEventISR(call, &interruptQueue);
+                    generated = true;
                 }
                 if (callbacks[InterruptMode::FALLING] && !risingEdge) {
                     interruptQueue.push(callbacks[InterruptMode::FALLING]);
-                    feature->scheduleEventISR(call, &interruptQueue);
+                    generated = true;
                 }
-            }, _interruptCallbacks[pinNum].get());
+
+                if (generated) {
+                    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+                    xTaskNotifyFromISR(holder.shovelTaskHandle, 0, eNoAction, &xHigherPriorityTaskWoken);
+                    if (xHigherPriorityTaskWoken) {
+                        portYIELD_FROM_ISR();
+                    }
+                }
+            }, &(it->second));
             gpio_intr_enable(pin);
         }
 
-        if ((*_interruptCallbacks[pinNum])[mode]) {
+        if ((it->second)[mode]) {
             throw std::runtime_error("Interrupt already attached");
         }
 
-        (*_interruptCallbacks[pinNum])[mode] = std::make_unique<detail::Callback_t>(std::move(callback));
+        EspCapsAllocator<MALLOC_CAP_INTERNAL, detail::Callback_t> alloc;
+        (it->second)[mode] = std::allocate_shared<detail::Callback_t>(alloc, std::move(callback));
     }
 
     void detachInterrupt(int pinNum, InterruptMode mode) {
         gpio_num_t pin = GpioFeature::getInterruptPin(pinNum);
 
-        if (_interruptCallbacks.find(pinNum) == _interruptCallbacks.end() || !(*_interruptCallbacks[pinNum])[mode]) {
+        auto it = _holder->_interruptCallbacks.find(pinNum);
+        if (it == _holder->_interruptCallbacks.end() || !(it->second)[mode]) {
             throw std::runtime_error("Interrupt not attached");
         }
 
-        (*_interruptCallbacks[pinNum])[mode] = nullptr;
+        (it->second)[mode] = nullptr;
 
-        if (!_interruptCallbacks[pinNum]) {
+        if (!it->second) {
             gpio_intr_disable(pin);
             gpio_isr_handler_remove(pin);
-            _interruptCallbacks.erase(pinNum);
+            _holder->_interruptCallbacks.erase(pinNum);
         }
     }
 
