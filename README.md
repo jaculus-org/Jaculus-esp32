@@ -4,7 +4,7 @@ Jaculus allows you to run JavaScript code on embedded platforms. This is a versi
 
 ## Usage
 
-You can install Jaculus to your device manually using ESP-IDF or using [Jaculus-tools](https://github.com/cubicap/Jaculus-tools), which are then used to program and control the device.
+You can install Jaculus to your device manually using ESP-IDF or using [Jaculus-tools](https://github.com/jaculus-org/Jaculus-tools), which are then used to program and control the device.
 
 # License
 

@@ -1,7 +1,7 @@
 dependencies:
   idf: ">=5.2.2"
   jac-dcore:
-    git: https://github.com/cubicap/Jaculus-dcore.git
+    git: https://github.com/jaculus-org/Jaculus-dcore.git
     version: v0.0.19
     path: src
   simple-radio:
