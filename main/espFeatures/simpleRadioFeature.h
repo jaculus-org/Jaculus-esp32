@@ -112,7 +112,10 @@ public:
         simpleradioModule.addExport("begin", ff.newFunction(noal::function([](int group) {
             auto config = SimpleRadio.DEFAULT_CONFIG;
             config.init_nvs = false; // Jaculus-Esp32 initializes it
-            SimpleRadio.begin(group, config);
+            esp_err_t err = SimpleRadio.begin(group, config);
+            if (err != ESP_OK) {
+                throw std::runtime_error("Failed to initialize SimpleRadio: " + std::to_string(err));
+            }
         })));
         simpleradioModule.addExport("setGroup", ff.newFunction(noal::function([](int group) { SimpleRadio.setGroup(group); })));
         simpleradioModule.addExport("group", ff.newFunction(noal::function([]() -> int { return SimpleRadio.group(); })));
