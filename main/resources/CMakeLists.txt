@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 set(ts_examples_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../ts-examples)
 set(ts_examples_tgz ts_examples.tar.gz)

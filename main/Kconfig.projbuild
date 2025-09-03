@@ -1,0 +1,69 @@
+menu "Jaculus ESP32 Configuration"
+
+    config JAC_ESP32_ENABLE_BLE
+        bool "Enable BLE Stream Support"
+        default y
+        help
+            Enable BLE (Bluetooth Low Energy) stream support for wireless communication.
+            This allows the ESP32 to act as a BLE GATT server that can be used
+            as a communication transport alongside UART, TCP, and JTAG streams.
+
+            When enabled:
+            - BLE stack will be initialized
+            - GATT server with custom service will be created
+            - Device will be discoverable as "ESP32_JAC_BLE_XXXX" (XXXX = MAC suffix)
+            - BLE stream will be available on mux channel 4
+
+            When disabled:
+            - BLE functionality is completely removed from build
+            - Reduces binary size and memory usage
+            - BT component dependency is optional
+
+    config JAC_ESP32_BLE_DEVICE_NAME
+        string "BLE Device Name Prefix"
+        depends on JAC_ESP32_ENABLE_BLE
+        default "ESP32_JAC_BLE"
+        help
+            The prefix for the BLE device name. The actual device name will be
+            this prefix followed by the last 2 bytes of the MAC address.
+            For example: "ESP32_JAC_BLE_A1B2"
+
+    config JAC_ESP32_BLE_SERVICE_UUID
+        hex "BLE GATT Service UUID (16-bit)"
+        depends on JAC_ESP32_ENABLE_BLE
+        default 0x00FF
+        range 0x0001 0xFFFE
+        help
+            The 16-bit UUID for the custom BLE GATT service.
+            Default is 0x00FF (255 in decimal).
+
+    config JAC_ESP32_BLE_CHARACTERISTIC_UUID
+        hex "BLE GATT Characteristic UUID (16-bit)"
+        depends on JAC_ESP32_ENABLE_BLE
+        default 0xFF01
+        range 0x0001 0xFFFE
+        help
+            The 16-bit UUID for the BLE GATT characteristic used for data transfer.
+            Default is 0xFF01 (65281 in decimal).
+
+    config JAC_ESP32_BLE_MTU_SIZE
+        int "BLE MTU Size"
+        depends on JAC_ESP32_ENABLE_BLE
+        default 500
+        range 23 512
+        help
+            Maximum Transmission Unit (MTU) size for BLE communication.
+            Larger values allow more data per packet but may not be supported
+            by all devices. Default is 500 bytes.
+
+    config JAC_ESP32_BLE_DEBUG_LOGS
+        bool "Enable BLE Debug Logging"
+        depends on JAC_ESP32_ENABLE_BLE
+        default n
+        help
+            Enable detailed debug logging for BLE operations.
+            This will show step-by-step initialization, connection events,
+            and data transfer details. Useful for debugging but increases
+            log output significantly.
+
+endmenu
