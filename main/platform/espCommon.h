@@ -36,3 +36,74 @@ public:
         ctx.getGlobalObject().defineProperty("PlatformInfo", platformInfo, jac::PropFlags::Enumerable);
     }
 };
+
+
+template<uint32_t CAPS>
+struct JsEspMallocFunctions {
+    static inline constexpr int MALLOC_OVERHEAD = 8;
+
+    /* default memory allocation functions with memory limitation */
+    static size_t js_esp_malloc_usable_size(const void *ptr) {
+        return heap_caps_get_allocated_size((void *)ptr);
+    }
+
+    static void *js_esp_malloc(JSMallocState *s, size_t size) {
+        void *ptr;
+
+        /* Do not allocate zero bytes: behavior is platform dependent */
+        assert(size != 0);
+
+        if (unlikely(s->malloc_size + size > s->malloc_limit))
+            return NULL;
+
+        ptr = heap_caps_malloc(size, CAPS);
+        if (!ptr)
+            return NULL;
+
+        s->malloc_count++;
+        s->malloc_size += js_esp_malloc_usable_size(ptr) + MALLOC_OVERHEAD;
+        return ptr;
+    }
+
+    static void js_esp_free(JSMallocState *s, void *ptr) {
+        if (!ptr)
+            return;
+
+        s->malloc_count--;
+        s->malloc_size -= js_esp_malloc_usable_size(ptr) + MALLOC_OVERHEAD;
+        heap_caps_free(ptr);
+    }
+
+    static void *js_esp_realloc(JSMallocState *s, void *ptr, size_t size) {
+        size_t old_size;
+
+        if (!ptr) {
+            if (size == 0)
+                return NULL;
+            return js_esp_malloc(s, size);
+        }
+        old_size = js_esp_malloc_usable_size(ptr);
+        if (size == 0) {
+            s->malloc_count--;
+            s->malloc_size -= old_size + MALLOC_OVERHEAD;
+            heap_caps_free(ptr);
+            return NULL;
+        }
+        if (s->malloc_size + size - old_size > s->malloc_limit)
+            return NULL;
+
+        ptr = heap_caps_realloc(ptr, size, CAPS);
+        if (!ptr)
+            return NULL;
+
+        s->malloc_size += js_esp_malloc_usable_size(ptr) - old_size;
+        return ptr;
+    }
+
+    static constexpr JSMallocFunctions js_esp_malloc_functions = {
+        .js_malloc = js_esp_malloc,
+        .js_free = js_esp_free,
+        .js_realloc = js_esp_realloc,
+        .js_malloc_usable_size = js_esp_malloc_usable_size
+    };
+};

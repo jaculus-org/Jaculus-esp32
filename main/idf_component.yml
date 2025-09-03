@@ -2,7 +2,7 @@ dependencies:
   idf: ">=5.2.2"
   jac-dcore:
     git: https://github.com/jaculus-org/Jaculus-dcore.git
-    version: v0.0.19
+    version: v0.0.20
     path: src
   simple-radio:
     git: https://github.com/RoboticsBrno/Esp32-simple-radio.git

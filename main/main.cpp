@@ -93,7 +93,8 @@ jac::Device<Machine> device(
     "/data",
     []() { // get memory stats
         std::stringstream oss;
-        oss << esp_get_free_heap_size() << "/" << esp_get_minimum_free_heap_size();
+        oss << esp_get_free_heap_size() << "; min " << esp_get_minimum_free_heap_size()
+            << "\nIRAM " << heap_caps_get_free_size(MALLOC_CAP_INTERNAL) << "; IRAM min " << heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
         return oss.str();
     },
     []() { // get storage stats
@@ -223,6 +224,7 @@ int main() {
         machine.stdio.in = std::make_unique<jac::LinkReadable<Machine>>(&machine, device.machineIO().in.get());
 
         machine.kvOpener = device.getKeyValueOpener();
+        machine.setMallocFunctions(&JsEspMallocFunctions<MALLOC_CAP_DEFAULT>::js_esp_malloc_functions);
 
         esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
         cfg.stack_size = 2 * 1024;
