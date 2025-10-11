@@ -28,6 +28,8 @@
 #include "espFeatures/wifiFeature.h"
 #include "espFeatures/gridui/gridUiFeature.h"
 #include "espFeatures/motorFeature.h"
+#include "espFeatures/selectFeature.h"
+#include "espFeatures/udpSocketFeature.h"
 
 #include "platform/espNvsKeyValue.h"
 #include "platform/espWifi.h"
@@ -86,6 +88,8 @@ using Machine = jac::ComposeMachine<
     WifiFeature,
     GridUiFeature,
     jac::KeyValueFeature,
+    SelectFeature,
+    UdpSocketFeature,
     jac::EventLoopTerminal
 >;
 
