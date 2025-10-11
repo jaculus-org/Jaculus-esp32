@@ -1,11 +1,11 @@
 #pragma once
 
-#include <jac/machine/machine.h>
-#include <jac/machine/functionFactory.h>
 #include <jac/machine/class.h>
+#include <jac/machine/functionFactory.h>
+#include <jac/machine/machine.h>
 
-#include <noal_func.h>
 #include <memory>
+#include <noal_func.h>
 #include <unordered_map>
 
 #include "driver/i2c.h"
@@ -101,7 +101,7 @@ struct I2CProtoBuilder : public jac::ProtoBuilder::Opaque<I2C<typename I2CFeatur
         static auto toUint8Array = [](jac::ContextRef ctx, std::vector<uint8_t> data) -> jac::Value {
             auto res = jac::ArrayBuffer::create(ctx, std::span(data.data(), data.size()));
 
-            auto& machine = *reinterpret_cast<I2CFeature*>(JS_GetContextOpaque(ctx));
+            auto& machine = *static_cast<I2CFeature*>(JS_GetContextOpaque(ctx));
             jac::Value convertor = machine.eval("(buf) => new Uint8Array(buf)", "<I2CFeature::readFrom>");
 
             return convertor.to<jac::Function>().call<jac::Value>(res);
@@ -116,7 +116,7 @@ struct I2CProtoBuilder : public jac::ProtoBuilder::Opaque<I2C<typename I2CFeatur
                 std::copy(str.begin(), str.end(), dataVec.begin());
             }
             else {
-                auto& machine = *reinterpret_cast<I2CFeature*>(JS_GetContextOpaque(ctx));
+                auto& machine = *static_cast<I2CFeature*>(JS_GetContextOpaque(ctx));
                 jac::Value toArrayBuffer = machine.eval(
 R"--(
 (data) => {

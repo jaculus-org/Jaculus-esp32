@@ -1,15 +1,16 @@
 #pragma once
 
-#include <mutex>
 #include <jac/device/logger.h>
+#include <mutex>
+
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 #include "espNvsKeyValue.h"
+
 
 class EspWifiController {
 public:
@@ -29,7 +30,7 @@ public:
     static constexpr const char *KeyWifiStaApFallback = "sta_ap_fallback";
     static constexpr const char *KeyWifiApSsid = "ap_ssid";
     static constexpr const char *KeyWifiApPass = "ap_pass";
-    static constexpr const char *KeyWifiCurrentIp = "current_ip"; // "fake" key that is actually only ever in memory
+    static constexpr const char *KeyWifiCurrentIp = "current_ip";  // "fake" key that is actually only ever in memory
 
 private:
     enum StaMode : uint8_t  {

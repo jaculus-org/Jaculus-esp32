@@ -1,10 +1,10 @@
 #pragma once
 
-#include <jac/machine/machine.h>
 #include <jac/machine/functionFactory.h>
+#include <jac/machine/machine.h>
 
-#include <stdexcept>
 #include <set>
+#include <stdexcept>
 
 #include "driver/adc.h"
 

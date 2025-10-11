@@ -1,13 +1,13 @@
 #pragma once
 
-#include <jac/machine/machine.h>
-#include <jac/machine/functionFactory.h>
 #include <jac/machine/class.h>
+#include <jac/machine/functionFactory.h>
+#include <jac/machine/machine.h>
 
-#include <noal_func.h>
-#include <memory>
-#include <unordered_map>
 #include <SmartLeds.h>
+#include <memory>
+#include <noal_func.h>
+#include <unordered_map>
 
 #include <set>
 
@@ -118,8 +118,8 @@ class SmartLedFeature : public Next {
 
             proto.defineProperty("clear", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisValue) {
                 SmartLed& strip = *getOpaque(ctx, thisValue);
-                for (int i = 0; i < strip.size(); i++) {
-                    strip[i] = Rgb(0, 0, 0);
+                for (auto& led : strip) {
+                    led = Rgb(0, 0, 0);
                 }
             }), jac::PropFlags::Enumerable);
         }

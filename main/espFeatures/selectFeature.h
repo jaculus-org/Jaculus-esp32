@@ -4,20 +4,21 @@
 #include <jac/machine/functionFactory.h>
 #include <jac/machine/machine.h>
 
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <atomic>
+#include <cerrno>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
-#include <functional>
-#include <string>
-#include <sys/poll.h>
-#include <unistd.h>
-#include <sys/socket.h>
+
 #include <fcntl.h>
-#include <errno.h>
 #include <netdb.h>
+#include <sys/poll.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 
 template<class Next>
@@ -101,7 +102,7 @@ private:
                         cb = it->second;
                     }
                     else {
-                        continue; // fd was removed
+                        continue;  // fd was removed
                     }
                 }
 
@@ -134,12 +135,11 @@ private:
 
                 sockaddr_storage sa{};
                 socklen_t sa_len = sizeof(sa);
-                n = ::recvfrom(fd, buffer.data(), buffer.size(), 0,
-                               reinterpret_cast<sockaddr*>(&sa), &sa_len);
+                n = ::recvfrom(fd, buffer.data(), buffer.size(), 0, reinterpret_cast<sockaddr*>(&sa), &sa_len);  // NOLINT
 
                 if (n >= 0 && sa_len > 0) {
                     if (sa.ss_family == AF_INET) {
-                        auto *s4 = reinterpret_cast<sockaddr_in*>(&sa);
+                        auto *s4 = reinterpret_cast<sockaddr_in*>(&sa);  // NOLINT
                         char buf[INET_ADDRSTRLEN] = {0};
                         if (inet_ntop(AF_INET, &s4->sin_addr, buf, sizeof(buf))) {
                             addr = buf;
@@ -148,7 +148,7 @@ private:
                     }
                     #if LWIP_IPV6
                     else if (sa.ss_family == AF_INET6) {
-                        auto *s6 = reinterpret_cast<sockaddr_in6*>(&sa);
+                        auto *s6 = reinterpret_cast<sockaddr_in6*>(&sa);  // NOLINT
                         char buf[INET6_ADDRSTRLEN] = {0};
                         if (inet_ntop(AF_INET6, &s6->sin6_addr, buf, sizeof(buf))) {
                             addr = buf;

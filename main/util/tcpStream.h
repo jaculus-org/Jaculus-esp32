@@ -1,7 +1,7 @@
 #pragma once
 
-#include <jac/link/stream.h>
 #include <jac/device/logger.h>
+#include <jac/link/stream.h>
 
 #include <algorithm>
 #include <array>
@@ -14,19 +14,20 @@
 #include <thread>
 
 #include <sys/param.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_system.h"
-#include "esp_wifi.h"
+
 #include "esp_event.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
 #include "esp_netif.h"
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "nvs_flash.h"
 
 #include "lwip/err.h"
+#include "lwip/netdb.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
-#include <lwip/netdb.h>
 
 namespace detail {
 
@@ -78,7 +79,7 @@ public:
         int ip_protocol = 0;
         struct sockaddr_storage dest_addr;
 
-        struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
+        auto *dest_addr_ip4 = reinterpret_cast<sockaddr_in*>(&dest_addr);  // NOLINT
         dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
         dest_addr_ip4->sin_family = AF_INET;
         dest_addr_ip4->sin_port = htons(_port);
@@ -98,7 +99,7 @@ public:
         setsockopt(_listenSock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
         jac::Logger::debug("Socket created");
 
-        int err = bind(_listenSock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+        int err = bind(_listenSock, reinterpret_cast<sockaddr*>(&dest_addr), sizeof(dest_addr));  // NOLINT
         if (err != 0) {
             jac::Logger::error(std::string("Socket unable to bind: errno ") + std::to_string(errno));
             jac::Logger::error(std::string("IPPROTO: ") + std::to_string(AF_INET));
@@ -238,6 +239,5 @@ public:
     ~TcpStream() override {
         _stopThread = true;
         _eventThread.join();
-
     }
 };

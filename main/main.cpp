@@ -1,53 +1,53 @@
+#include <jac/features/basicStreamFeature.h>
+#include <jac/features/eventLoopFeature.h>
+#include <jac/features/filesystemFeature.h>
+#include <jac/features/moduleLoaderFeature.h>
+#include <jac/features/stdioFeature.h>
+#include <jac/features/timersFeature.h>
 #include <jac/machine/machine.h>
 #include <jac/machine/values.h>
-#include <jac/features/eventLoopFeature.h>
-#include <jac/features/timersFeature.h>
-#include <jac/features/moduleLoaderFeature.h>
-#include <jac/features/filesystemFeature.h>
-#include <jac/features/basicStreamFeature.h>
-#include <jac/features/stdioFeature.h>
 
 #include <jac/device/device.h>
 #include <jac/device/logger.h>
 #include <jac/features/keyvalueFeature.h>
 #include <jac/features/util/linkIo.h>
 
-#include <jac/link/mux.h>
 #include <jac/link/encoders/cobs.h>
+#include <jac/link/mux.h>
 
-#include "espFeatures/smartLedFeature.h"
-#include "espFeatures/gpioFeature.h"
-#include "espFeatures/freeRTOSEventQueue.h"
-#include "espFeatures/ledcFeature.h"
 #include "espFeatures/adcFeature.h"
-#include "espFeatures/i2cFeature.h"
-#include "espFeatures/simpleRadioFeature.h"
 #include "espFeatures/extendLifetimeFeature.h"
-#include "espFeatures/pulseCounterFeature.h"
-#include "espFeatures/timestampFeature.h"
-#include "espFeatures/wifiFeature.h"
+#include "espFeatures/freeRTOSEventQueue.h"
+#include "espFeatures/gpioFeature.h"
 #include "espFeatures/gridui/gridUiFeature.h"
+#include "espFeatures/i2cFeature.h"
+#include "espFeatures/ledcFeature.h"
 #include "espFeatures/motorFeature.h"
+#include "espFeatures/pulseCounterFeature.h"
 #include "espFeatures/selectFeature.h"
+#include "espFeatures/simpleRadioFeature.h"
+#include "espFeatures/smartLedFeature.h"
+#include "espFeatures/timestampFeature.h"
 #include "espFeatures/udpSocketFeature.h"
+#include "espFeatures/wifiFeature.h"
 
 #include "platform/espNvsKeyValue.h"
 #include "platform/espWifi.h"
 
-#include "util/uartStream.h"
 #include "util/tcpStream.h"
+#include "util/uartStream.h"
 
 #include "resources/resources.h"
 
-#include <string>
 #include <filesystem>
 #include <sstream>
-
-#include "esp_vfs_fat.h"
-#include "nvs_flash.h"
-#include "freertos/task.h"
+#include <string>
 
 #include "esp_pthread.h"
+#include "esp_vfs_fat.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "nvs_flash.h"
 
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)

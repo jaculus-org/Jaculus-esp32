@@ -1,8 +1,11 @@
-#include <memory>
 #include <jac/device/keyvalue.h>
 #include <jac/device/logger.h>
-#include "nvs_flash.h"
+
+#include <memory>
+
 #include "espWifi.h"
+#include "nvs_flash.h"
+
 
 std::unique_ptr<EspNvsKeyValue> EspNvsKeyValue::open(const std::string& nsname) {
     nvs_handle_t handle;
@@ -80,7 +83,8 @@ std::string EspNvsKeyValue::getString(const std::string& name, std::string def_v
     auto err = nvs_get_str(_handle, name.c_str(), NULL, &str_len);
     if(err == ESP_ERR_NVS_NOT_FOUND) {
         return def_value;
-    } else if(err != ESP_OK) {
+    }
+    else if(err != ESP_OK) {
         jac::Logger::error("Unexpected error in EspNvsKeyValue::getString for " + name + ": " + std::string(esp_err_to_name(err)));
         return def_value;
     }

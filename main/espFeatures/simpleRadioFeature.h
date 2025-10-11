@@ -1,7 +1,7 @@
 #pragma once
 
-#include <jac/machine/machine.h>
 #include <jac/machine/functionFactory.h>
+#include <jac/machine/machine.h>
 
 #include <simple_radio.h>
 #include <sstream>
@@ -111,7 +111,7 @@ public:
 
         simpleradioModule.addExport("begin", ff.newFunction(noal::function([](int group) {
             auto config = SimpleRadio.DEFAULT_CONFIG;
-            config.init_nvs = false; // Jaculus-Esp32 initializes it
+            config.init_nvs = false;  // Jaculus-Esp32 initializes it
             esp_err_t err = SimpleRadio.begin(group, config);
             if (err != ESP_OK) {
                 throw std::runtime_error("Failed to initialize SimpleRadio: " + std::to_string(err));

@@ -1,15 +1,15 @@
 #pragma once
 
+#include <jac/features/types/streams.h>
 #include <jac/machine/class.h>
 #include <jac/machine/machine.h>
 #include <jac/machine/values.h>
-#include <jac/features/types/streams.h>
 
 #include <dcmotor.h>
 
 #include <format>
-#include <vector>
 #include <optional>
+#include <vector>
 
 
 template<typename Feature>
@@ -234,11 +234,11 @@ public:
         auto ledcConf = options.get<LedcConfig<Feature>>("ledc");
         auto reg = options.get<RegParams>("reg");
 
-        auto machine = reinterpret_cast<Feature*>(JS_GetContextOpaque(ctx));
+        auto machine = static_cast<Feature*>(JS_GetContextOpaque(ctx));
         std::unique_ptr<JSDCMotor> mot = std::make_unique<JSDCMotor>(pins, ledcConf, reg, encTicks, circumference);
         mot->motor->onTarget([mot = mot.get(), machine]() {
             static constexpr auto resolve = +[](void* data) {
-                JSDCMotor* mot = reinterpret_cast<JSDCMotor*>(data);
+                JSDCMotor* mot = static_cast<JSDCMotor*>(data);
                 if (mot->pendingPromise) {
                     mot->pendingPromise->resolve.call<void>();
                     mot->pendingPromise.reset();
@@ -246,7 +246,7 @@ public:
             };
 
             if (mot->pendingPromise) {
-                machine->scheduleEventISR(resolve, mot); // FIXME: potential out-of-memory access
+                machine->scheduleEventISR(resolve, mot);  // FIXME: potential out-of-memory access
             }
         });
         mot->motor->setEndPosTolerance(3);
@@ -369,7 +369,7 @@ public:
                 throw jac::Exception::create(jac::Exception::Type::InternalError, "Motor is closed");
             }
 
-            Feature& machine = *reinterpret_cast<Feature*>(JS_GetContextOpaque(ctx));
+            Feature& machine = *static_cast<Feature*>(JS_GetContextOpaque(ctx));
 
             motor.reportDump(*(machine.stdio.out));
         }), jac::PropFlags::Enumerable);
@@ -419,13 +419,13 @@ public:
 
             motor.clear();
 
-            auto machine = reinterpret_cast<Feature*>(JS_GetContextOpaque(ctx));
+            auto machine = static_cast<Feature*>(JS_GetContextOpaque(ctx));
             machine->unregisterMotor(thisVal);
         }), jac::PropFlags::Enumerable);
     }
 
     static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, std::vector<jac::ValueWeak> args) {
-        auto machine = reinterpret_cast<Feature*>(JS_GetContextOpaque(ctx));
+        auto machine = static_cast<Feature*>(JS_GetContextOpaque(ctx));
         machine->registerMotor(thisVal);
     }
 };

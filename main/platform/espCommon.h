@@ -43,11 +43,11 @@ struct JsEspMallocFunctions {
     static inline constexpr int MALLOC_OVERHEAD = 8;
 
     /* default memory allocation functions with memory limitation */
-    static size_t js_esp_malloc_usable_size(const void *ptr) {
-        return heap_caps_get_allocated_size((void *)ptr);
+    static size_t js_esp_malloc_usable_size(const void* ptr) {
+        return heap_caps_get_allocated_size(const_cast<void*>(ptr));  // NOLINT
     }
 
-    static void *js_esp_malloc(JSMallocState *s, size_t size) {
+    static void *js_esp_malloc(JSMallocState* s, size_t size) {
         void *ptr;
 
         /* Do not allocate zero bytes: behavior is platform dependent */
@@ -65,7 +65,7 @@ struct JsEspMallocFunctions {
         return ptr;
     }
 
-    static void js_esp_free(JSMallocState *s, void *ptr) {
+    static void js_esp_free(JSMallocState* s, void* ptr) {
         if (!ptr)
             return;
 
@@ -74,7 +74,7 @@ struct JsEspMallocFunctions {
         heap_caps_free(ptr);
     }
 
-    static void *js_esp_realloc(JSMallocState *s, void *ptr, size_t size) {
+    static void *js_esp_realloc(JSMallocState* s, void* ptr, size_t size) {
         size_t old_size;
 
         if (!ptr) {

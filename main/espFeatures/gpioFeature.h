@@ -1,22 +1,21 @@
 #pragma once
 
 
+#include <jac/machine/functionFactory.h>
 #include <jac/machine/machine.h>
 #include <jac/machine/values.h>
-#include <jac/machine/functionFactory.h>
 
-#include <map>
-#include <memory>
 #include <array>
 #include <atomic>
+#include <map>
+#include <memory>
 
 #include "../util/capsAllocator.h"
 
 #include "driver/gpio.h"
-
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "freertos/portmacro.h"
+#include "freertos/task.h"
 
 
 enum class PinMode {

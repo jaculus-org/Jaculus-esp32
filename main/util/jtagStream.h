@@ -1,7 +1,7 @@
 #pragma once
 
-#include <jac/link/stream.h>
 #include <jac/device/logger.h>
+#include <jac/link/stream.h>
 
 #include <algorithm>
 #include <array>

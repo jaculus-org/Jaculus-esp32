@@ -1,7 +1,7 @@
 #pragma once
 
-#include <jac/machine/machine.h>
 #include <jac/machine/functionFactory.h>
+#include <jac/machine/machine.h>
 
 #include <unordered_set>
 

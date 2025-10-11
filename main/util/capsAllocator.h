@@ -1,7 +1,7 @@
 #pragma once
 
-#include <memory>
 #include "esp_heap_caps.h"
+#include <memory>
 
 using caps_t = decltype(MALLOC_CAP_DEFAULT);
 

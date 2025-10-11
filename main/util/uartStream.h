@@ -1,7 +1,7 @@
 #pragma once
 
-#include <jac/link/stream.h>
 #include <jac/device/logger.h>
+#include <jac/link/stream.h>
 
 #include <atomic>
 #include <cstdint>
@@ -58,11 +58,11 @@ public:
     }
 
     bool put(uint8_t c) override {
-        return uart_write_bytes(_port, reinterpret_cast<const char*>(&c), 1) == 1;
+        return uart_write_bytes(_port, reinterpret_cast<const char*>(&c), 1) == 1;  // NOLINT
     }
 
     size_t write(std::span<const uint8_t> data) override {
-        return uart_write_bytes(_port, reinterpret_cast<const char*>(data.data()), data.size());
+        return uart_write_bytes(_port, reinterpret_cast<const char*>(data.data()), data.size());  // NOLINT
     }
 
     int get() override {

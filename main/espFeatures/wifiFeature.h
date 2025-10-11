@@ -19,7 +19,8 @@ public:
             auto& wifi = EspWifiController::get();
             if(wifi.currentIp().addr == 0) {
                 return jac::Value::null(this->context());
-            } else {
+            }
+            else {
                 return jac::Value::from(this->context(), wifi.currentIpStr());
             }
         })));

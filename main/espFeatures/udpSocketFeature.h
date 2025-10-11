@@ -5,24 +5,24 @@
 #include <jac/machine/machine.h>
 #include <jac/machine/values.h>
 
+#include <atomic>
+#include <cerrno>
+#include <condition_variable>
+#include <cstring>
+#include <functional>
+#include <list>
+#include <mutex>
 #include <span>
 #include <string>
-#include <vector>
-#include <functional>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <atomic>
-#include <cstring>
-#include <cerrno>
-#include <list>
+#include <vector>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <fcntl.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "../platform/espWifi.h"
 
@@ -81,7 +81,7 @@ public:
             return;
         }
 
-        if (::bind(_sockfd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+        if (::bind(_sockfd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {  // NOLINT
             ::close(_sockfd);
             _sockfd = -1;
             error();
@@ -158,7 +158,7 @@ public:
         }
 
         ssize_t sent = ::sendto(_sockfd, data.data(), static_cast<int>(data.size()), 0,
-                                reinterpret_cast<sockaddr*>(&dest), sizeof(dest));
+                                reinterpret_cast<sockaddr*>(&dest), sizeof(dest));  // NOLINT
         if (sent < 0) {
             throw jac::Exception::create(jac::Exception::Type::Error, std::string("sendto failed: ") + std::strerror(errno));
         }
