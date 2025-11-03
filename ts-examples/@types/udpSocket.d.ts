@@ -13,7 +13,7 @@ declare module "udp" {
         constructor(options: {
             address?: string;
             port?: number;
-            onReadable?: (bytesAvailable: number) => void;
+            onReadable?: (dgramsAvailable: number) => void;
             onError?: (error: Error) => void;
         });
 
