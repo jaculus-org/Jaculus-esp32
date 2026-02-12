@@ -1,8 +1,11 @@
-set(JAC_ESP32_VERSION "0.0.21")
+set(JAC_ESP32_VERSION "0.0.22")
 
 idf_component_register(
-    SRCS "main.cpp" "platform/espWifi.cpp" "platform/espNvsKeyValue.cpp"
-        "espFeatures/gridui/gridUiFeature.cpp" "espFeatures/gridui/widgets/_common.cpp"
+    SRCS "main.cpp"
+         "platform/espWifi.cpp"
+         "platform/espNvsKeyValue.cpp"
+         "espFeatures/gridui/gridUiFeature.cpp"
+         "espFeatures/gridui/widgets/_common.cpp"
     INCLUDE_DIRS ""
     REQUIRES jac-dcore jac-machine jac-link
              driver pthread spiffs vfs fatfs
