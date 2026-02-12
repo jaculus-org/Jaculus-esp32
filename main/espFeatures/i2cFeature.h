@@ -6,10 +6,11 @@
 
 #include <memory>
 #include <noal_func.h>
-#include <unordered_map>
+#include <optional>
 
 #include "driver/i2c.h"
 #include "freertos/FreeRTOS.h"
+#include "util.h"
 
 
 template<class PlatformInfo>
@@ -54,10 +55,6 @@ public:
     }
 
     void setup(std::optional<int> scl, std::optional<int> sda, std::optional<int> bitrate) {
-        if (open) {
-            throw std::runtime_error("I2C already open");
-        }
-
         int scl_ = scl.value_or(PlatformInfo::PinConfig::DEFAULT_I2C_SCL_PIN);
         int sda_ = sda.value_or(PlatformInfo::PinConfig::DEFAULT_I2C_SDA_PIN);
         int bitrate_ = bitrate.value_or(400000);
@@ -76,6 +73,7 @@ public:
 
         i2c_param_config(port, &conf);
         i2c_driver_install(port, conf.mode, 0, 0, 0);
+        open = true;
     }
 
     void close() {
@@ -96,46 +94,6 @@ struct I2CProtoBuilder : public jac::ProtoBuilder::Opaque<I2C<typename I2CFeatur
 
     static void addProperties(JSContext* ctx, jac::Object proto) {
         jac::FunctionFactory ff(ctx);
-
-        // XXX: ugly hack
-        static auto toUint8Array = [](jac::ContextRef ctx, std::vector<uint8_t> data) -> jac::Value {
-            auto res = jac::ArrayBuffer::create(ctx, std::span(data.data(), data.size()));
-
-            auto& machine = *static_cast<I2CFeature*>(JS_GetContextOpaque(ctx));
-            jac::Value convertor = machine.eval("(buf) => new Uint8Array(buf)", "<I2CFeature::readFrom>");
-
-            return convertor.to<jac::Function>().call<jac::Value>(res);
-        };
-
-        static auto toStdVector = [](jac::ContextRef ctx, jac::Value data) -> std::vector<uint8_t> {
-            std::vector<uint8_t> dataVec;
-
-            if (JS_IsString(data.getVal())) {
-                auto str = data.toString();
-                dataVec.resize(str.size());
-                std::copy(str.begin(), str.end(), dataVec.begin());
-            }
-            else {
-                auto& machine = *static_cast<I2CFeature*>(JS_GetContextOpaque(ctx));
-                jac::Value toArrayBuffer = machine.eval(
-R"--(
-(data) => {
-    if (data instanceof ArrayBuffer) return data;
-    if (ArrayBuffer.isView(data)) return data.buffer;
-    if (typeof data === 'number') return new Int8Array([data]).buffer;
-    if (Array.isArray(data)) return new Int8Array(data).buffer;
-    throw new Error('Invalid data type');
-}
-)--", "<I2CFeature::writeTo>");
-
-                auto res = toArrayBuffer.to<jac::Function>().call<jac::ArrayBuffer>(data);
-                auto dataView = res.typedView<uint8_t>();
-                dataVec.resize(dataView.size());
-                std::copy(dataView.begin(), dataView.end(), dataVec.begin());
-            }
-
-            return dataVec;
-        };
 
         proto.defineProperty("readFrom", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int address, int quantity) {
             auto& i2c = *I2CProtoBuilder::getOpaque(ctx, thisVal);
