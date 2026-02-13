@@ -31,6 +31,7 @@
 #include "espFeatures/timestampFeature.h"
 #include "espFeatures/udpSocketFeature.h"
 #include "espFeatures/wifiFeature.h"
+#include "espFeatures/convertFeature.h"
 
 #include "platform/espNvsKeyValue.h"
 #include "platform/espWifi.h"
@@ -78,6 +79,7 @@ using Machine = jac::ComposeMachine<
     jac::TimersFeature,
     TimestampFeature,
     ExtendLifetimeFeature,
+    ConvertFeature,
     GpioFeature,
     LedcFeature,
     AdcFeature,

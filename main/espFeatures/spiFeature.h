@@ -11,10 +11,9 @@
 
 #include "driver/spi_master.h"
 #include "freertos/FreeRTOS.h"
-#include "util.h"
+#include <chrono>
 
 
-template<class PlatformInfo>
 class SPI {
     spi_host_device_t host;
     spi_device_handle_t deviceHandle;
@@ -122,28 +121,32 @@ public:
 
 
 template<class SPIFeature>
-struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI<typename SPIFeature::PlatformInfo>>, public jac::ProtoBuilder::Properties {
-    using SPI_ = SPI<typename SPIFeature::PlatformInfo>;
-
+struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI>, public jac::ProtoBuilder::Properties {
     static void addProperties(JSContext* ctx, jac::Object proto) {
         jac::FunctionFactory ff(ctx);
 
         proto.defineProperty("send", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Value data, int cs) {
+            auto& feature = *reinterpret_cast<SPIFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
-            auto dataVec = toStdVector(ctx, data);
+            auto dataVec = feature.toStdVector(data);
             auto rx = spi.transfer(std::move(dataVec), cs);
-            return toUint8Array(ctx, rx);
+            return feature.toUint8Array(rx);
         }));
         proto.defineProperty("write", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Value data, int cs) {
+        std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+            auto& feature = *reinterpret_cast<SPIFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
-            auto dataVec = toStdVector(ctx, data);
+            auto dataVec = feature.toStdVector(data);
             spi.transfer(std::move(dataVec), cs);
+            std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+            jac::Logger::debug("transfer took " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()) + "ms");
         }));
         proto.defineProperty("transfer", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Value data, int cs, int rxLength, bool qio) {
+            auto& feature = *reinterpret_cast<SPIFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
-            auto dataVec = toStdVector(ctx, data);
+            auto dataVec = feature.toStdVector(data);
             auto rx = spi.transfer(std::move(dataVec), cs, rxLength, qio);
-            return toUint8Array(ctx, rx);
+            return feature.toUint8Array(rx);
         }));
         proto.defineProperty("setup", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object options) {
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
@@ -204,7 +207,7 @@ public:
 
         jac::Module& mod = this->newModule("spi");
         for (int i = 0; i < SPI_HOST_MAX; ++i) {
-            mod.addExport("SPI" + std::to_string(i + 1), SPIClass::createInstance(this->context(), new SPI<typename Next::PlatformInfo>(i)));
+            mod.addExport("SPI" + std::to_string(i + 1), SPIClass::createInstance(this->context(), new SPI(i)));
         }
     }
 };

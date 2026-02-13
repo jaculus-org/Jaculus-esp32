@@ -10,7 +10,6 @@
 
 #include "driver/i2c.h"
 #include "freertos/FreeRTOS.h"
-#include "util.h"
 
 
 template<class PlatformInfo>
@@ -96,25 +95,28 @@ struct I2CProtoBuilder : public jac::ProtoBuilder::Opaque<I2C<typename I2CFeatur
         jac::FunctionFactory ff(ctx);
 
         proto.defineProperty("readFrom", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int address, int quantity) {
+            auto& feature = *reinterpret_cast<I2CFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& i2c = *I2CProtoBuilder::getOpaque(ctx, thisVal);
             auto data = i2c.readFrom(address, quantity);
 
-            return toUint8Array(ctx, data);
+            return feature.toUint8Array(data);
         }));
 
         proto.defineProperty("writeTo", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int address, jac::Value data) {
+            auto& feature = *reinterpret_cast<I2CFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& i2c = *I2CProtoBuilder::getOpaque(ctx, thisVal);
-            auto dataVec = toStdVector(ctx, data);
+            auto dataVec = feature.toStdVector(data);
 
             i2c.writeTo(address, std::move(dataVec));
         }));
 
         proto.defineProperty("writeRead", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int address, jac::Value data, int quantity) {
+            auto& feature = *reinterpret_cast<I2CFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& i2c = *I2CProtoBuilder::getOpaque(ctx, thisVal);
-            auto dataVec = toStdVector(ctx, data);
+            auto dataVec = feature.toStdVector(data);
             auto res = i2c.writeRead(address, std::move(dataVec), quantity);
 
-            return toUint8Array(ctx, res);
+            return feature.toUint8Array(res);
         }));
 
         proto.defineProperty("setup", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object options) {
