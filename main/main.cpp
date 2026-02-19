@@ -1,7 +1,7 @@
 #include <jac/features/basicStreamFeature.h>
 #include <jac/features/eventLoopFeature.h>
 #include <jac/features/filesystemFeature.h>
-#include <jac/features/moduleLoaderFeature.h>
+#include <jac/features/nodeModuleLoaderFeature.h>
 #include <jac/features/stdioFeature.h>
 #include <jac/features/timersFeature.h>
 #include <jac/machine/machine.h>
@@ -75,7 +75,7 @@ using Machine = jac::ComposeMachine<
     PlatformInfoFeature,
     jac::EventLoopFeature,
     jac::FilesystemFeature,
-    jac::ModuleLoaderFeature,
+    jac::NodeModuleLoaderFeature,
     jac::TimersFeature,
     TimestampFeature,
     ExtendLifetimeFeature,
@@ -274,7 +274,7 @@ int main() {
     }
 
     if (startMachine) {
-        device.startMachine("index.js");
+        device.startMachine("");
     }
 }
 
