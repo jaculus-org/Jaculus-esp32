@@ -24,11 +24,16 @@
 template<class Next>
 class SelectFeature : public Next {
 public:
-    using DataCloseCallbacks = std::tuple<void(*)(void*, std::vector<uint8_t> /*data*/, std::string /*addr*/, uint16_t /*port*/), void(*)(void*), void*>;
+    struct SelectCallbacks {
+        void(*onData)(void*, std::vector<uint8_t> /*data*/, std::string /*addr*/, uint16_t /*port*/);
+        void(*close)(void*);
+        void(*error)(void*);
+        void* opaque;
+    };
 private:
     mutable std::mutex _mutex;
     std::condition_variable _cv;
-    std::unordered_map<int, DataCloseCallbacks> _callbacks;
+    std::unordered_map<int, SelectCallbacks> _callbacks;
     std::thread _workerThread;
     std::atomic<bool> _running{false};
 
@@ -94,7 +99,7 @@ private:
                 }
                 int fd = pfd.fd;
 
-                DataCloseCallbacks cb;
+                SelectCallbacks cb;
                 {
                     std::lock_guard<std::mutex> lock(_mutex);
                     auto it = _callbacks.find(fd);
@@ -115,70 +120,77 @@ private:
                     isDgram = (sockType == SOCK_DGRAM);
                 }
 
-                if (isDgram) {
-                    int available = 0;
-                    if (ioctl(fd, FIONREAD, &available) >= 0 && available > 0) {
-                        buffer.resize(static_cast<size_t>(available));
-                        buffer.shrink_to_fit();
+                try {
+                    if (isDgram) {
+                        int available = 0;
+                        if (ioctl(fd, FIONREAD, &available) >= 0 && available > 0) {
+                            buffer.resize(static_cast<size_t>(available));
+                            buffer.shrink_to_fit();
+                        }
+                        else {
+                            buffer.resize(BUFFER_SIZE);
+                            buffer.shrink_to_fit();
+                        }
                     }
                     else {
                         buffer.resize(BUFFER_SIZE);
                         buffer.shrink_to_fit();
                     }
-                }
-                else {
-                    buffer.resize(BUFFER_SIZE);
-                    buffer.shrink_to_fit();
-                }
-                std::string addr;
-                uint16_t port = 0;
+                    std::string addr;
+                    uint16_t port = 0;
 
-                sockaddr_storage sa{};
-                socklen_t sa_len = sizeof(sa);
-                n = ::recvfrom(fd, buffer.data(), buffer.size(), 0, reinterpret_cast<sockaddr*>(&sa), &sa_len);  // NOLINT
+                    sockaddr_storage sa{};
+                    socklen_t sa_len = sizeof(sa);
+                    n = ::recvfrom(fd, buffer.data(), buffer.size(), 0, reinterpret_cast<sockaddr*>(&sa), &sa_len);  // NOLINT
 
-                if (n >= 0 && sa_len > 0) {
-                    if (sa.ss_family == AF_INET) {
-                        auto *s4 = reinterpret_cast<sockaddr_in*>(&sa);  // NOLINT
-                        char buf[INET_ADDRSTRLEN] = {0};
-                        if (inet_ntop(AF_INET, &s4->sin_addr, buf, sizeof(buf))) {
-                            addr = buf;
+                    if (n >= 0 && sa_len > 0) {
+                        if (sa.ss_family == AF_INET) {
+                            auto *s4 = reinterpret_cast<sockaddr_in*>(&sa);  // NOLINT
+                            char buf[INET_ADDRSTRLEN] = {0};
+                            if (inet_ntop(AF_INET, &s4->sin_addr, buf, sizeof(buf))) {
+                                addr = buf;
+                            }
+                            port = ntohs(s4->sin_port);
                         }
-                        port = ntohs(s4->sin_port);
-                    }
-                    #if LWIP_IPV6
-                    else if (sa.ss_family == AF_INET6) {
-                        auto *s6 = reinterpret_cast<sockaddr_in6*>(&sa);  // NOLINT
-                        char buf[INET6_ADDRSTRLEN] = {0};
-                        if (inet_ntop(AF_INET6, &s6->sin6_addr, buf, sizeof(buf))) {
-                            addr = buf;
+                        #if LWIP_IPV6
+                        else if (sa.ss_family == AF_INET6) {
+                            auto *s6 = reinterpret_cast<sockaddr_in6*>(&sa);  // NOLINT
+                            char buf[INET6_ADDRSTRLEN] = {0};
+                            if (inet_ntop(AF_INET6, &s6->sin6_addr, buf, sizeof(buf))) {
+                                addr = buf;
+                            }
+                            port = ntohs(s6->sin6_port);
                         }
-                        port = ntohs(s6->sin6_port);
+                        #endif /* LWIP_IPV6 */
+                        else {
+                            addr.clear();
+                            port = 0;
+                        }
                     }
-                    #endif /* LWIP_IPV6 */
-                    else {
-                        addr.clear();
-                        port = 0;
-                    }
-                }
 
-                if (n > 0) {
-                    buffer.resize(static_cast<size_t>(n));
-                    auto& [dataCb, _, opaque] = cb;
-
-                    dataCb(opaque, std::move(buffer), std::move(addr), port);
-                }
-                else if (n == 0) {
-                    removeSelectFd(fd);
-                }
-                else {  // n < 0
-                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                        continue;
+                    if (n > 0) {
+                        buffer.resize(static_cast<size_t>(n));
+                        cb.onData(cb.opaque, std::move(buffer), std::move(addr), port);
+                        buffer.clear();
                     }
-                    else {
-                        // treat other errors as terminal for this fd
+                    else if (n == 0) {
                         removeSelectFd(fd);
                     }
+                    else {  // n < 0
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                            continue;
+                        }
+                        else {
+                            // treat other errors as terminal for this fd
+                            removeSelectFd(fd);
+                        }
+                    }
+                }
+                catch (const std::bad_alloc&) {
+                    if (cb.error) {
+                        cb.error(cb.opaque);
+                    }
+                    removeSelectFd(fd);
                 }
             }
         }
@@ -194,7 +206,7 @@ public:
     ~SelectFeature() {
         stopWorker();
         while (true) {
-            DataCloseCallbacks cb;
+            SelectCallbacks cb;
             {
                 std::lock_guard<std::mutex> g(_mutex);
                 auto it = _callbacks.begin();
@@ -203,14 +215,13 @@ public:
                 }
                 cb = it->second;
             }
-            auto& [_, closeCb, opaque] = cb;
-            if (closeCb) {
-                closeCb(opaque);
+            if (cb.close) {
+                cb.close(cb.opaque);
             }
         }
     }
 
-    bool addSelectFd(int fd, DataCloseCallbacks cb) {
+    bool addSelectFd(int fd, SelectCallbacks cb) {
         if (fd < 0) {
             return false;
         }

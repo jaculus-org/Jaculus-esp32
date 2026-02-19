@@ -235,14 +235,16 @@ int main() {
         machine.setMallocFunctions(&JsEspMallocFunctions<MALLOC_CAP_DEFAULT>::js_esp_malloc_functions);
 
         esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
-        cfg.stack_size = 2 * 1024;
+        cfg.stack_size = 4 * 1024;
         cfg.inherit_cfg = true;
+        cfg.thread_name = "work";
         esp_pthread_set_cfg(&cfg);
     });
 
     esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
     cfg.stack_size = 10 * 1024;
     cfg.inherit_cfg = true;
+    cfg.thread_name = "device";
     esp_pthread_set_cfg(&cfg);
 
     device.start();

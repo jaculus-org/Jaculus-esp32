@@ -42,17 +42,35 @@ private:
     std::function<void(void)> _onError;
     std::function<void(uint32_t)> _onReadable;  // uint32_t: number of datagrams available
     UdpFeature* _feature;
+    unsigned _maxQueueSize;
 
     int _sockfd{-1};
-    std::mutex _readMutex;
+    std::mutex _mutex;
     std::list<RxInfo> _rxQueue;
 
     void error() {
-        if (_onError) _onError();
+        if (_onError) {
+            _onError();
+        }
+        else {
+            closeLocked();
+            _feature->exit(1);
+        }
+    }
+
+    void closeLocked() {
+        if (_sockfd >= 0) {
+            _feature->removeSelectFd(_sockfd);
+            ::close(_sockfd);
+            _sockfd = -1;
+
+            _onReadable = nullptr;
+            _onError = nullptr;
+        }
     }
 
 public:
-    UdpSocket(UdpFeature* feature, std::string address, uint16_t port, std::function<void(void)> onError, std::function<void(uint32_t)> onReadable):
+    UdpSocket(UdpFeature* feature, std::string address, uint16_t port, std::function<void(void)> onError, std::function<void(uint32_t)> onReadable, unsigned maxQueueSize):
         _address(std::move(address)),
         _port(port),
         _onError(std::move(onError)),
@@ -92,20 +110,30 @@ public:
             +[](void* t, std::vector<uint8_t> data, std::string addr, uint16_t port) {
                 UdpSocket& self = *static_cast<UdpSocket*>(t);
 
+                std::lock_guard<std::mutex> lock(self._mutex);
                 if (data.empty()) {
                     // socket closed
-                    self.close();
                     self.error();
+                    self.closeLocked();
                     return;
                 }
 
-                std::lock_guard<std::mutex> lk(self._readMutex);
+                if (self._rxQueue.size() >= self._maxQueueSize) {
+                    self.error();
+                    // self.closeLocked();
+                    return;
+                }
                 self._rxQueue.push_back({ std::move(data), std::move(addr), port });
 
                 if (self._onReadable) {
                     self._feature->scheduleEvent([&self, count = self._rxQueue.size()]() {
-                        if (self._onReadable) {
-                            self._onReadable(static_cast<uint32_t>(count));
+                        decltype(self._onReadable) onReadable;
+                        {
+                            std::lock_guard<std::mutex> lock(self._mutex);
+                            onReadable = self._onReadable;
+                        }
+                        if (onReadable) {
+                            onReadable(static_cast<uint32_t>(count));
                         }
                     });
                 }
@@ -113,6 +141,14 @@ public:
             +[](void* t) {
                 UdpSocket& self = *static_cast<UdpSocket*>(t);
                 self.close();
+            },
+            +[](void* t) {
+                UdpSocket& self = *static_cast<UdpSocket*>(t);
+                self._feature->scheduleEvent([&self]() {
+                    std::lock_guard<std::mutex> lock(self._mutex);
+                    self.error();
+                    self.closeLocked();
+                });
             },
             this
         });
@@ -133,7 +169,7 @@ public:
     }
 
     RxInfo read() {
-        std::lock_guard<std::mutex> lk(_readMutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         if (_rxQueue.empty()) {
             throw jac::Exception::create(jac::Exception::Type::Error, "No data available");
         }
@@ -143,6 +179,7 @@ public:
     }
 
     void write(std::span<const uint8_t> data, std::string destAddress, uint16_t destPort) {
+        std::lock_guard<std::mutex> lock(_mutex);
         if (_sockfd < 0) {
             throw jac::Exception::create(jac::Exception::Type::Error, "Socket is closed");
         }
@@ -165,14 +202,8 @@ public:
     }
 
     void close() {
-        if (_sockfd >= 0) {
-            _feature->removeSelectFd(_sockfd);
-            ::close(_sockfd);
-            _sockfd = -1;
-
-            _onReadable = nullptr;
-            _onError = nullptr;
-        }
+        std::lock_guard<std::mutex> lock(_mutex);
+        closeLocked();
     }
 };
 
@@ -213,9 +244,16 @@ struct UdpSocketProtoBuilder : public jac::ProtoBuilder::Opaque<UdpSocket<UdpFea
                 fn.call<void>(n);
             };
         }
-        auto feature = static_cast<UdpFeature*>(JS_GetContextOpaque(ctx));
+        int maxQueueSize = 20;
+        if (options.hasProperty("maxQueueSize")) {
+            maxQueueSize = options.get<int>("maxQueueSize");
+            if (maxQueueSize <= 0) {
+                throw jac::Exception::create(jac::Exception::Type::RangeError, "maxQueueSize must be positive");
+            }
+        }
 
-        return new UdpSocket<UdpFeature>(feature, address, static_cast<uint16_t>(port), std::move(onError), std::move(onReadable));
+        auto feature = static_cast<UdpFeature*>(JS_GetContextOpaque(ctx));
+        return new UdpSocket<UdpFeature>(feature, address, static_cast<uint16_t>(port), std::move(onError), std::move(onReadable), maxQueueSize);
     }
 
     static void addProperties(jac::ContextRef ctx, jac::Object proto) {
