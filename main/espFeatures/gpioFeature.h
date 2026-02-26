@@ -55,8 +55,8 @@ namespace detail {
     class InterruptQueue {
         using ArrayType = std::array<std::shared_ptr<Callback_t>, N>;
         ArrayType queue;
-        ArrayType::iterator head = queue.begin();
-        ArrayType::iterator tail = queue.begin();
+        std::atomic<typename ArrayType::iterator> head = queue.begin();
+        std::atomic<typename ArrayType::iterator> tail = queue.begin();
 
         auto next(ArrayType::iterator it) {
             it++;
@@ -65,21 +65,23 @@ namespace detail {
 
     public:
         bool push(std::shared_ptr<Callback_t> callback) {
-            if (next(tail) == head) {
+            auto t = tail.load();
+            if (next(t) == head) {
                 return false;
             }
-            *tail = callback;
-            tail = next(tail);
+            *t = callback;
+            tail = next(t);
             return true;
         }
 
         std::shared_ptr<Callback_t> pop() {
-            if (head == tail) {
+            auto h = head.load();
+            if (h == tail) {
                 return nullptr;
             }
-            auto callback = *head;
-            *head = nullptr;
-            head = next(head);
+            auto callback = *h;
+            *h = nullptr;
+            head = next(h);
             return callback;
         }
 
@@ -170,14 +172,13 @@ class Gpio {
                 continue;
             }
             auto& queue = gpio._holder->_interruptQueue;
-            if (queue.empty()) {
-                continue;
+            while (!queue.empty()) {
+                auto callback = queue.pop();
+                gpio._feature->scheduleEvent([callback]() {
+                    auto now = std::chrono::steady_clock::now();
+                    (*callback)(now);
+                });
             }
-            auto callback = queue.pop();
-            gpio._feature->scheduleEvent([callback]() {
-                auto now = std::chrono::steady_clock::now();
-                (*callback)(now);
-            });
         }
     }
 public:
@@ -209,6 +210,7 @@ public:
                 if (state == eDeleted || state == eInvalid) {
                     break;
                 }
+                vTaskDelay(10 / portTICK_PERIOD_MS);
             }
         }
     }
