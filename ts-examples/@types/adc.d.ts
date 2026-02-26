@@ -5,7 +5,7 @@ declare module "adc" {
         readonly Db0: Atten;
         readonly Db2_5: Atten;
         readonly Db6: Atten;
-        readonly Db11: Atten;
+        readonly Db12: Atten;
     };
 
 
