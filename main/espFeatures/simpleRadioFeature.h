@@ -3,8 +3,10 @@
 #include <jac/machine/functionFactory.h>
 #include <jac/machine/machine.h>
 
+#include <esp_wifi.h>
 #include <simple_radio.h>
 #include <sstream>
+#include <iomanip>
 
 
 template<>
@@ -17,6 +19,8 @@ struct jac::ConvTraits<PacketDataType> {
             return Value::from(ctx, "string");
         case PacketDataType::KeyValue:
             return Value::from(ctx, "keyvalue");
+        case PacketDataType::Blob:
+            return Value::from(ctx, "blob");
         }
     }
 
@@ -31,22 +35,26 @@ struct jac::ConvTraits<PacketDataType> {
         else if (str == "keyvalue") {
             return PacketDataType::KeyValue;
         }
+        else if (str == "blob") {
+            return PacketDataType::Blob;
+        }
         else {
             throw std::runtime_error("Invalid PacketDataType");
         }
     }
 };
 
-using EspBdAddress = std::array<uint8_t, ESP_BD_ADDR_LEN>;
+using EspBdAddress = std::array<uint8_t, sizeof(simple_radio_addr_t)>;
 
 template<>
 struct jac::ConvTraits<EspBdAddress> {
     static Value to(ContextRef ctx, EspBdAddress val) {
         std::stringstream ss;
         ss << std::hex;
-        for (int i = 0; i < 6; i++) {
-            ss << static_cast<int>(val[i]);
-            if (i != 5) {
+        ss << std::setfill('0');
+        for (size_t i = 0; i < val.size(); i++) {
+            ss << std::setw(2) << static_cast<int>(val[i]);
+            if (i + 1 != val.size()) {
                 ss << ":";
             }
         }
@@ -58,11 +66,11 @@ struct jac::ConvTraits<EspBdAddress> {
         EspBdAddress addr;
         std::stringstream ss(str);
         ss >> std::hex;
-        for (int i = 0; i < 6; i++) {
+        for (size_t i = 0; i < addr.size(); i++) {
             int byte;
             ss >> byte;
             addr[i] = static_cast<uint8_t>(byte);
-            if (i != 5) {
+            if (i + 1 != addr.size()) {
                 char c;
                 ss >> c;
                 if (c != ':') {
@@ -78,7 +86,7 @@ template<>
 struct jac::ConvTraits<PacketInfo> {
     static Value to(ContextRef ctx, PacketInfo val) {
         EspBdAddress addr;
-        std::copy(val.addr, val.addr + ESP_BD_ADDR_LEN, addr.begin());
+        std::copy(std::begin(val.addr), std::end(val.addr), addr.begin());
         auto obj = Object::create(ctx);
         obj.set("group", static_cast<int>(val.group));
         obj.set("address", addr);
@@ -92,7 +100,7 @@ struct jac::ConvTraits<PacketInfo> {
 
         PacketInfo info;
         info.group = obj.get<int>("group");
-        std::copy(addr.begin(), addr.end(), info.addr);
+        std::copy(addr.begin(), addr.end(), std::begin(info.addr));
         info.rssi = obj.get<int>("rssi");
         return info;
     }
@@ -112,6 +120,13 @@ public:
         simpleradioModule.addExport("begin", ff.newFunction(noal::function([](int group) {
             auto config = SimpleRadio.DEFAULT_CONFIG;
             config.init_nvs = false;  // Jaculus-Esp32 initializes it
+            wifi_mode_t wifiMode = WIFI_MODE_NULL;
+            if (esp_wifi_get_mode(&wifiMode) == ESP_OK) {
+                config.init_netif = false;
+                config.init_event_loop = false;
+                config.init_wifi = false;
+                config.channel = 0;
+            }
             esp_err_t err = SimpleRadio.begin(group, config);
             if (err != ESP_OK) {
                 throw std::runtime_error("Failed to initialize SimpleRadio: " + std::to_string(err));
@@ -125,9 +140,13 @@ public:
             return res;
         })));
         simpleradioModule.addExport("sendString", ff.newFunction(noal::function([](std::string str) { SimpleRadio.sendString(str); })));
-        simpleradioModule.addExport("sendNumber", ff.newFunction(noal::function([](int num) { SimpleRadio.sendNumber(num); })));
+        simpleradioModule.addExport("sendNumber", ff.newFunction(noal::function([](double num) { SimpleRadio.sendNumber(num); })));
         simpleradioModule.addExport("sendKeyValue", ff.newFunction(noal::function([](std::string key, double value) {
             SimpleRadio.sendKeyValue(key, value);
+        })));
+        simpleradioModule.addExport("sendBlob", ff.newFunction(noal::function([this](jac::Value data) {
+            auto dataVec = this->toStdVector(data);
+            SimpleRadio.sendBlob(dataVec);
         })));
         simpleradioModule.addExport("on", ff.newFunction(noal::function([this](PacketDataType type, jac::Function callback) {
             switch (type) {
@@ -152,6 +171,14 @@ public:
                     });
                 });
                 break;
+            case PacketDataType::Blob:
+                SimpleRadio.setOnBlobCallback([this, callback](std::span<const uint8_t> data, PacketInfo info) mutable {
+                    auto dataVec = std::vector<uint8_t>(data.begin(), data.end());
+                    this->scheduleEvent([this, callback, data = std::move(dataVec), info]() mutable {
+                        callback.call<void>(this->toUint8Array(data), info);
+                    });
+                });
+                break;
             }
         })));
         simpleradioModule.addExport("off", ff.newFunction(noal::function([](PacketDataType type) {
@@ -165,6 +192,9 @@ public:
             case PacketDataType::KeyValue:
                 SimpleRadio.setOnKeyValueCallback(nullptr);
                 break;
+            case PacketDataType::Blob:
+                SimpleRadio.setOnBlobCallback(nullptr);
+                break;
             }
         })));
         simpleradioModule.addExport("end", ff.newFunction(noal::function([]() { SimpleRadio.end(); })));
@@ -174,6 +204,7 @@ public:
         SimpleRadio.setOnNumberCallback(nullptr);
         SimpleRadio.setOnStringCallback(nullptr);
         SimpleRadio.setOnKeyValueCallback(nullptr);
+        SimpleRadio.setOnBlobCallback(nullptr);
         SimpleRadio.end();
     }
 };
