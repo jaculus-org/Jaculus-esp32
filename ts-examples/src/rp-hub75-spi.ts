@@ -70,24 +70,24 @@ export async function solarSystemExample() {
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer();
 
-    const sunCollection = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1], z: 0 });
+    const sunCollection = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255], z: 0 });
     sunCollection.setPivot(32, 32);
 
     const sun = new Circle({
         x: 32, y: 32,
         radius: 8,
-        color: [255, 255, 0, 1],
+        color: [255, 255, 0, 255],
         fill: true
     });
     sunCollection.add(sun);
 
-    const earthCollection = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1], z: 5 });
+    const earthCollection = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255], z: 5 });
     earthCollection.setPivot(32, 32);
 
     const earth = new Circle({
         x: 32 + 20, y: 32,
         radius: 4,
-        color: [0, 150, 255, 1],
+        color: [0, 150, 255, 255],
         fill: true,
         z: 10
     });
@@ -96,19 +96,19 @@ export async function solarSystemExample() {
     const alien = new Circle({
         x: 32 - 20, y: 32,
         radius: 4,
-        color: [0, 255, 100, 1],
+        color: [0, 255, 100, 255],
         fill: true,
         z: 10
     });
     earthCollection.add(alien);
 
-    const moonCollection = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1], z: 10 });
+    const moonCollection = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255], z: 10 });
     moonCollection.setPivot(52, 32);
 
     const moon = new Circle({
         x: 32 + 20 + 8, y: 32,
         radius: 2,
-        color: [200, 200, 200, 1],
+        color: [200, 200, 200, 255],
         fill: true,
         z: 10
     });
@@ -120,7 +120,7 @@ export async function solarSystemExample() {
     const earthOrbit = new Circle({
         x: 32, y: 32,
         radius: 20,
-        color: [100, 100, 100, 1],
+        color: [100, 100, 100, 255],
         fill: false,
         z: 1
     });
@@ -129,12 +129,11 @@ export async function solarSystemExample() {
     const moonOrbit = new Circle({
         x: 32 + 20, y: 32,
         radius: 8,
-        color: [100, 100, 100, 1],
+        color: [100, 100, 100, 255],
         fill: false,
         z: 1
     });
     earthCollection.add(moonOrbit);
-    let angle = 0;
 
     console.log(`Starting RP-HUB75 SPI loop (${syncBuffer.length} sync bytes + ${modesetBuffer.length} modeset bytes + rendered RGB565 frames)...`);
 
@@ -143,7 +142,6 @@ export async function solarSystemExample() {
         moonCollection.rotate(3);
         renderer.render(sunCollection, renderBuffer, true, Format.RGB_888);
         sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
-        angle += 0.15;
         await sleep(1);
     }
 }
@@ -156,10 +154,10 @@ export async function rectangleExample() {
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer();
 
-    const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1] });
+    const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255] });
     scene.setPivot(32, 31);
     scene.rotate(-90);
-    const rect = new Rectangle({ x: 0, y: 0, width: 5, height: 2, color: [0, 255, 0, 1] });
+    const rect = new Rectangle({ x: 0, y: 0, width: 5, height: 2, color: [0, 255, 0, 255] });
     scene.add(rect);
 
     console.log(`Starting RP-HUB75 SPI loop (${syncBuffer.length} sync bytes + ${modesetBuffer.length} modeset bytes + rendered RGB565 frames)...`);

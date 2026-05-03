@@ -12,12 +12,15 @@
 #include "Shape.hpp"
 #include "Utils.hpp"
 #include "esp_cpu.h"
+#include "esp_err.h"
 #include "esp_heap_caps.h"
+#include "ff.h"
 #include "jac/device/logger.h"
 #include "jac/machine/context.h"
 #include "jac/machine/internal/declarations.h"
 #include "quickjs.h"
 
+#include "esp_cpu.h"
 #include <cstdint>
 #include <jac/machine/class.h>
 #include <jac/machine/functionFactory.h>
@@ -25,72 +28,19 @@
 #include <jac/machine/values.h>
 #include <memory>
 
+// Helper macro to debug slow code
+#define MEASURE_EXEC(name, code)                                               \
+    do {                                                                       \
+        uint32_t start = esp_cpu_get_cycle_count();                            \
+        code;                                                                  \
+        uint32_t diff = esp_cpu_get_cycle_count() - start;                     \
+        uint32_t us = diff / 240;                                              \
+        jac::Logger::debug(std::string(name) +                                 \
+                           " took: " + std::to_string(us) + " us");            \
+    } while (0)
+
 // Reference:
 // https://419.ecma-international.org/3.0/index.html#-15-display-class-pattern-pixel-format-values
-size_t packColor(uint8_t *raw, const Color &p, int format, bool antialias) {
-    uint8_t r = p.r;
-    uint8_t g = p.g;
-    uint8_t b = p.b;
-    if (antialias) {
-        r = (uint8_t)r * p.a;
-        g = (uint8_t)g * p.a;
-        b = (uint8_t)b * p.a;
-    }
-    uint8_t a = (uint8_t)(p.a * 255);
-
-    switch (format) {
-    case 3: { // 1-bit monochrome
-        raw[0] = (r + g + b) / 3 > 127 ? 1 : 0;
-        return 1;
-    }
-    case 4: { // 4-bit grayscale
-        uint8_t gray = (uint8_t)((0.299f * r + 0.587f * g + 0.114f * b));
-        raw[0] = (gray >> 4) & 0x0F;
-        return 1;
-    }
-    case 5: { // 8-bit grayscale
-        raw[0] = (uint8_t)(0.299f * r + 0.587f * g + 0.114f * b);
-        return 1;
-    }
-    case 6: { // 8-bit RGB 3:3:2
-        raw[0] = (r & 0xE0) | ((g >> 3) & 0x1C) | (b >> 6);
-        return 1;
-    }
-    case 7: { // 16-bit RGB 5:6:5 Little-Endian
-        uint16_t rgb = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-        raw[0] = rgb & 0xFF;
-        raw[1] = (rgb >> 8) & 0xFF;
-        return 2;
-    }
-    case 8: { // 16-bit RGB 5:6:5 Big-Endian
-        uint16_t rgb = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-        raw[0] = (rgb >> 8) & 0xFF;
-        raw[1] = rgb & 0xFF;
-        return 2;
-    }
-    case 9: { // 24-bit RGB 8:8:8
-        raw[0] = r;
-        raw[1] = g;
-        raw[2] = b;
-        return 3;
-    }
-    case 10: { // 32-bit RGBA 8:8:8:8
-        raw[0] = p.r;
-        raw[1] = p.g;
-        raw[2] = p.b;
-        raw[3] = a;
-        return 4;
-    }
-    case 12: { // 12-bit xRGB 4:4:4:4 (x is unused/alpha)
-        raw[0] = (g & 0xF0) | (b >> 4);
-        raw[1] = (a & 0xF0) | (r >> 4); // a used as 'x'
-        return 2;
-    }
-    default:
-        return 0;
-    }
-}
-
 size_t packedColorSize(int format) {
     switch (format) {
     case 3:
@@ -111,9 +61,52 @@ size_t packedColorSize(int format) {
     }
 }
 
+template <bool Antialias, int BytesPerPixel, typename Packer>
+void fillBufferBlock(uint8_t *raw, int width, int height,
+                     const Display &displayGrid, int start_sx, int start_sy,
+                     int dx_sx, int dx_sy, int dy_sx, int dy_sy, Packer pack) {
+    uint8_t *out = raw;
+    int row_sx = start_sx;
+    int row_sy = start_sy;
+
+    for (int y = 0; y < height; ++y) {
+        int sx = row_sx;
+        int sy = row_sy;
+
+        for (int x = 0; x < width; ++x) {
+            if (static_cast<unsigned>(sx) <
+                    static_cast<unsigned>(displayGrid.width) &&
+                static_cast<unsigned>(sy) <
+                    static_cast<unsigned>(displayGrid.height)) {
+
+                Color p = displayGrid.pixels[sy * displayGrid.width + sx];
+
+                if constexpr (Antialias) {
+                    p.r = (p.r * p.a) >> 8;
+                    p.g = (p.g * p.a) >> 8;
+                    p.b = (p.b * p.a) >> 8;
+                }
+
+                pack(out, p);
+            } else {
+                for (int i = 0; i < BytesPerPixel; ++i) {
+                    out[i] = 0;
+                }
+            }
+
+            out += BytesPerPixel;
+            sx += dx_sx;
+            sy += dx_sy;
+        }
+        row_sx += dy_sx;
+        row_sy += dy_sy;
+    }
+}
+
 size_t writeDenseFramebuffer(uint8_t *raw, size_t maxBytes, int width,
                              int height, int format, bool antialias,
-                             const Display &displayGrid) {
+                             const Display &displayGrid, int rotation = 0) {
+
     size_t bytesPerPixel = packedColorSize(format);
     if (bytesPerPixel == 0)
         return 0;
@@ -123,23 +116,89 @@ size_t writeDenseFramebuffer(uint8_t *raw, size_t maxBytes, int width,
     if (frameBytes > maxBytes)
         return 0;
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            size_t offset =
-                (static_cast<size_t>(y) * static_cast<size_t>(width) +
-                 static_cast<size_t>(x)) *
-                bytesPerPixel;
+    int r = (rotation % 4 + 4) % 4;
 
-            if (x < displayGrid.width && y < displayGrid.height) {
-                packColor(&raw[offset],
-                          displayGrid.pixels[y * displayGrid.width + x], format,
-                          antialias);
-            } else {
-                for (size_t i = 0; i < bytesPerPixel; i++)
-                    raw[offset + i] = 0;
-            }
-        }
+    int start_sx = 0, start_sy = 0;
+    int dx_sx = 1, dx_sy = 0, dy_sx = 0, dy_sy = 1;
+
+    if (r == 1) { // 90 degrees
+        start_sx = 0;
+        start_sy = width - 1;
+        dx_sx = 0;
+        dx_sy = -1;
+        dy_sx = 1;
+        dy_sy = 0;
+    } else if (r == 2) { // 180 degrees
+        start_sx = width - 1;
+        start_sy = height - 1;
+        dx_sx = -1;
+        dx_sy = 0;
+        dy_sx = 0;
+        dy_sy = -1;
+    } else if (r == 3) { // 270 degrees
+        start_sx = height - 1;
+        start_sy = 0;
+        dx_sx = 0;
+        dx_sy = 1;
+        dy_sx = -1;
+        dy_sy = 0;
     }
+
+#define HANDLE_FORMAT(FMT, BYTES, PACK_LAMBDA)                                 \
+    case FMT:                                                                  \
+        if (antialias)                                                         \
+            fillBufferBlock<true, BYTES>(raw, width, height, displayGrid,      \
+                                         start_sx, start_sy, dx_sx, dx_sy,     \
+                                         dy_sx, dy_sy, PACK_LAMBDA);           \
+        else                                                                   \
+            fillBufferBlock<false, BYTES>(raw, width, height, displayGrid,     \
+                                          start_sx, start_sy, dx_sx, dx_sy,    \
+                                          dy_sx, dy_sy, PACK_LAMBDA);          \
+        break;
+
+    switch (format) {
+        HANDLE_FORMAT(3, 1, [](uint8_t *out, Color p) {
+            out[0] = (p.r + p.g + p.b) > 381 ? 1 : 0;
+        })
+        HANDLE_FORMAT(4, 1, [](uint8_t *out, Color p) {
+            out[0] = ((p.r * 77 + p.g * 150 + p.b * 29) >> 12) & 0x0F;
+        })
+        HANDLE_FORMAT(5, 1, [](uint8_t *out, Color p) {
+            out[0] = (p.r * 77 + p.g * 150 + p.b * 29) >> 8;
+        })
+        HANDLE_FORMAT(6, 1, [](uint8_t *out, Color p) {
+            out[0] = (p.r & 0xE0) | ((p.g >> 3) & 0x1C) | (p.b >> 6);
+        })
+        HANDLE_FORMAT(7, 2, [](uint8_t *out, Color p) {
+            uint16_t rgb =
+                ((p.r & 0xF8) << 8) | ((p.g & 0xFC) << 3) | (p.b >> 3);
+            out[0] = rgb & 0xFF;
+            out[1] = rgb >> 8;
+        })
+        HANDLE_FORMAT(8, 2, [](uint8_t *out, Color p) {
+            uint16_t rgb =
+                ((p.r & 0xF8) << 8) | ((p.g & 0xFC) << 3) | (p.b >> 3);
+            out[0] = rgb >> 8;
+            out[1] = rgb & 0xFF;
+        })
+        HANDLE_FORMAT(9, 3, [](uint8_t *out, Color p) {
+            out[0] = p.r;
+            out[1] = p.g;
+            out[2] = p.b;
+        })
+        HANDLE_FORMAT(10, 4, [](uint8_t *out, Color p) {
+            out[0] = p.r;
+            out[1] = p.g;
+            out[2] = p.b;
+            out[3] = p.a;
+        })
+        HANDLE_FORMAT(12, 2, [](uint8_t *out, Color p) {
+            out[0] = (p.g & 0xF0) | (p.b >> 4);
+            out[1] = (p.a & 0xF0) | (p.r >> 4);
+        })
+    }
+#undef HANDLE_FORMAT
+
     return frameBytes;
 }
 
@@ -848,18 +907,21 @@ class RendererProtoBuilder : public jac::ProtoBuilder::Opaque<RendererHolder>,
                 if (format < 3 || format == 11 || format > 12) {
                     jac::Logger::error("Renderer: Invalid color format");
                 }
+                int rotation = (args.size() > 4) ? args[4].to<int>() : 0;
 
                 int w = holder->getWidth();
                 int h = holder->getHeight();
                 holder->getRenderer()->clear();
+
                 holder->getRenderer()->render({*collectionPtr},
                                               {w, h, antialias});
 
                 const Display &displayGrid =
                     holder->getRenderer()->getDisplayGrid();
 
-                size_t frameBytes = writeDenseFramebuffer(
-                    raw, maxBytes, w, h, format, antialias, displayGrid);
+                size_t frameBytes =
+                    writeDenseFramebuffer(raw, maxBytes, w, h, format,
+                                          antialias, displayGrid, rotation);
 
                 if (frameBytes == 0) {
                     jac::Logger::error("Renderer.render: ArrayBuffer too small "
@@ -910,6 +972,7 @@ class RendererProtoBuilder : public jac::ProtoBuilder::Opaque<RendererHolder>,
                 bool wrap = (args.size() >= 7) ? args[6].to<bool>() : false;
 
                 int format = (args.size() >= 8) ? args[7].to<int>() : 10;
+                int rotation = (args.size() >= 9) ? args[8].to<int>() : 0;
 
                 holder->getRenderer()->drawText(text, x, y, font, color, wrap);
 
@@ -918,7 +981,7 @@ class RendererProtoBuilder : public jac::ProtoBuilder::Opaque<RendererHolder>,
 
                 size_t frameBytes = writeDenseFramebuffer(
                     raw, maxBytes, holder->getWidth(), holder->getHeight(),
-                    format, false, displayGrid);
+                    format, false, displayGrid, rotation);
 
                 if (frameBytes == 0) {
                     jac::Logger::error("Renderer.drawText: ArrayBuffer too "

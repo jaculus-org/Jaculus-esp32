@@ -46,33 +46,33 @@ export async function shapeExample() {
     const renderBuffer = new Uint8Array(BUFFER_SIZE_BYTES);
     const oledBuffer = new Uint8Array(1024);
 
-    const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1] });
+    const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255] });
 
-    const line1 = new LineSegment({ x: 0, y: 20, x2: 63, y2: 35, color: [255, 255, 255, 1] });
+    const line1 = new LineSegment({ x: 0, y: 20, x2: 63, y2: 35, color: [255, 255, 255, 255] });
     scene.add(line1);
 
-    const rect = new Rectangle({ x: 6, y: 6, width: 6, height: 6, color: [255, 255, 255, 1], fill: true });
+    const rect = new Rectangle({ x: 6, y: 6, width: 6, height: 6, color: [255, 255, 255, 255], fill: true });
     scene.add(rect);
 
-    const circle = new Circle({ x: 18, y: 6, radius: 5, color: [255, 255, 255, 1], fill: true });
+    const circle = new Circle({ x: 18, y: 6, radius: 5, color: [255, 255, 255, 255], fill: true });
     scene.add(circle);
 
-    const hexagon = new RegularPolygon({ x: 48, y: 48, radius: 10, sides: 6, color: [255, 255, 255, 1], fill: true });
+    const hexagon = new RegularPolygon({ x: 48, y: 48, radius: 10, sides: 6, color: [255, 255, 255, 255], fill: true });
     scene.add(hexagon);
 
-    const pentagon = new RegularPolygon({ x: 48, y: 16, radius: 8, sides: 5, color: [255, 255, 255, 1], fill: true });
+    const pentagon = new RegularPolygon({ x: 48, y: 16, radius: 8, sides: 5, color: [255, 255, 255, 255], fill: true });
     scene.add(pentagon);
 
-    const polygon = new Polygon({ x: 16, y: 48, color: [255, 255, 255, 1], vertices: [[0, 0], [10, 5], [5, 15], [0, 10]], fill: true });
+    const polygon = new Polygon({ x: 16, y: 48, color: [255, 255, 255, 255], vertices: [[0, 0], [10, 5], [5, 15], [0, 10]], fill: true });
     scene.add(polygon);
 
-    const line2 = new LineSegment({ x: 32, y: 0, x2: 20, y2: 40, color: [255, 255, 255, 1] });
+    const line2 = new LineSegment({ x: 32, y: 0, x2: 20, y2: 40, color: [255, 255, 255, 255] });
     scene.add(line2);
 
-    const lineRect = new Rectangle({ x: 25, y: 20, width: 8, height: 5, color: [255, 255, 255, 1], fill: true });
+    const lineRect = new Rectangle({ x: 25, y: 20, width: 8, height: 5, color: [255, 255, 255, 255], fill: true });
     scene.add(lineRect);
 
-    const point = new Point({ x: 32, y: 42, color: [255, 255, 255, 1] });
+    const point = new Point({ x: 32, y: 42, color: [255, 255, 255, 255] });
     scene.add(point);
 
     console.log("Starting Monochrome OLED Render Loop (5-bytes per pixel)...");
@@ -97,7 +97,6 @@ export async function shapeExample() {
             }
         }
 
-        // Blast to the display
         sendBufferToOLED(ADDR_RIGHT, oledBuffer);
 
         await sleep(100);

@@ -1,20 +1,12 @@
 import { Renderer } from 'renderer';
 import { Collection, Polygon, Circle, RegularPolygon } from 'shapes';
-import { SPI2 } from 'spi';
 import { Format } from './constants.js';
 import * as adc from "adc";
+import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from './spiSender.js';
 
 // --- CONFIGURATION ---
 const PANEL_WIDTH = 64;
 const PANEL_HEIGHT = 64;
-
-// --- SPI SETUP (Boilerplate) ---
-const PIN_SCK = 3;
-const PIN_CS = 1;
-const SPI_BAUD = 2_000_000;
-const SPI_MODE = 0;
-const MODE_MAGIC = 0xfb;
-const SYNC_WORDS = [0xac92, 0x3bca, 0x41bf, 0x393d, 0xa74a, 0xae01, 0x155d, 0xfb70, 0xf681, 0x2f6d, 0x4931, 0x0fa3, 0x77bf, 0xd756, 0x26f9, 0x4eb6];
 
 // --- HARDWARE CONFIG ---
 const MOVE_X = 4;
@@ -42,28 +34,10 @@ function getStickVector(pinX, pinY, swapped) {
     // Normalize the vector so diagonal movement isn't faster
     const mag = Math.sqrt(rawX * rawX + rawY * rawY);
     return {
-        x: (swapped ? -1 : 1) * rawY / mag,
-        y: (swapped ? -1 : 1) * -rawX / mag,
+        x: (swapped ? -1 : 1) * rawX / mag,
+        y: (swapped ? -1 : 1) * rawY / mag,
         active: true
     };
-}
-
-function setupSpi() {
-    SPI2.setup({ sck: PIN_SCK, data0: 38, data1: 39, data2: 41, data3: 45, baud: SPI_BAUD, mode: SPI_MODE, order: 'lsb' });
-}
-
-function buildSyncBuffer() {
-    const buffer = new Uint8Array(SYNC_WORDS.length * 2);
-    const view = new DataView(buffer.buffer);
-    for (let i = 0; i < SYNC_WORDS.length; i++) view.setUint16(i * 2, SYNC_WORDS[i], true);
-    return buffer;
-}
-
-function buildModesetBuffer() {
-    const buffer = new Uint8Array(8);
-    const view = new DataView(buffer.buffer);
-    view.setUint8(0, MODE_MAGIC); view.setUint8(2, Format.RGB_888); view.setUint16(4, PANEL_WIDTH, true);
-    return buffer;
 }
 
 // --- GAME LOGIC ---
@@ -97,15 +71,15 @@ function resetGame() {
     for (let i = 0; i < 4; i++) spawnAsteroid();
 }
 
-async function runAsteroids() {
+export async function runAsteroids() {
     setupSpi();
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(PANEL_WIDTH * PANEL_HEIGHT * 3);
     const syncBuffer = buildSyncBuffer();
-    const modesetBuffer = buildModesetBuffer();
+    const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
 
-    const FRAME_TIME = 11;   // ~30 FPS
-    const POLL_INTERVAL = 11; // Poll inputs 3x per frame
+    const FRAME_TIME = 1;
+    const POLL_INTERVAL = 1;
 
     resetGame();
 
@@ -207,14 +181,14 @@ async function runAsteroids() {
         }
 
         // --- 3. Render Frame ---
-        const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1] });
+        const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255] });
 
         // Draw Asteroids (Hexagons)
         for (let a of asteroids) {
             scene.add(new RegularPolygon({
                 x: a.x, y: a.y,
                 sides: 6, radius: a.r,
-                color: [100, 100, 255, 1], // Light Blue
+                color: [100, 100, 255, 255], // Light Blue
                 fill: false,
             }));
         }
@@ -224,7 +198,7 @@ async function runAsteroids() {
             scene.add(new Circle({
                 x: b.x, y: b.y,
                 radius: 1,
-                color: [255, 255, 0, 1], // Yellow
+                color: [255, 255, 0, 255], // Yellow
                 fill: true
             }));
         }
@@ -235,7 +209,7 @@ async function runAsteroids() {
             x: player.x,
             y: player.y,
             vertices: [[3, 0], [-2, -2], [-2, 2]],
-            color: [0, 255, 0, 1], // Green
+            color: [0, 255, 0, 255], // Green
             fill: true
         });
 
@@ -243,10 +217,8 @@ async function runAsteroids() {
         scene.add(ship);
 
         // Push to display
-        renderer.render(scene, renderBuffer, true, Format.RGB_888);
-        SPI2.transfer(syncBuffer, PIN_CS, 0, true);
-        SPI2.transfer(modesetBuffer, PIN_CS, 0, true);
-        SPI2.transfer(renderBuffer, PIN_CS, 0, true);
+        renderer.render(scene, renderBuffer, true, Format.RGB_888, -1);
+        sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
     }
 }
 

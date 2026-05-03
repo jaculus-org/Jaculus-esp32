@@ -1,5 +1,6 @@
 declare module "shapes" {
     import { Texture } from "renderer";
+    // R, G, B, A, 0-255
     export type Color = [number, number, number, number] | "red" | "green" | "blue" | "yellow" | "magenta" | "cyan" | "white" | "black";
 
     export interface ShapeParams {
@@ -354,9 +355,10 @@ declare module "renderer" {
          * @param buffer The output pixel buffer.
          * @param antialias Whether to enable antialiasing.
          * @param format The output pixel format.
+         * @param rotation Rotates the whole image by 90 degree increments.
          * @returns The number of bytes written.
          */
-        render(scene: Collection, buffer: ArrayBuffer, antialias?: boolean, format?: import("../src/constants.js").Format): number;
+        render(scene: Collection, buffer: ArrayBuffer, antialias?: boolean, format?: import("../src/constants.js").Format, rotation?: number): number;
 
         /**
          * Draw text into the provided buffer.
@@ -368,8 +370,9 @@ declare module "renderer" {
          * @param color The text color.
          * @param wrap Whether to wrap lines to the renderer width.
          * @param format The output pixel format.
+         * @param rotation Rotates the whole image by 90 degree increments.
          * @returns The number of bytes written.
          */
-        drawText(buffer: ArrayBuffer, text: string, x: number, y: number, font: Font, color: Color, wrap: boolean, format?: import("../src/constants.js").Format): number;
+        drawText(buffer: ArrayBuffer, text: string, x: number, y: number, font: Font, color: Color, wrap: boolean, format?: import("../src/constants.js").Format, rotation?: number): number;
     }
 }

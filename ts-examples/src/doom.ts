@@ -1,18 +1,12 @@
 import { Renderer } from 'renderer';
 import { Collection, Rectangle } from 'shapes';
-import { SPI2 } from 'spi';
 import { Format } from './constants.js';
 import * as adc from "adc";
+import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from './spiSender.js';
 
 // --- CONFIGURATION & SPI SETUP ---
 const PANEL_WIDTH = 64;
 const PANEL_HEIGHT = 64;
-const PIN_SCK = 3;
-const PIN_CS = 1;
-const SPI_BAUD = 2_000_000;
-const SPI_MODE = 0;
-const MODE_MAGIC = 0xfb;
-const SYNC_WORDS = [0xac92, 0x3bca, 0x41bf, 0x393d, 0xa74a, 0xae01, 0x155d, 0xfb70, 0xf681, 0x2f6d, 0x4931, 0x0fa3, 0x77bf, 0xd756, 0x26f9, 0x4eb6];
 
 // Left Joystick for Movement (Y = Forward/Back, X = Turn Left/Right)
 const JOY_X = 4;
@@ -47,31 +41,15 @@ let planeY = 0.66; // FOV adjustment
 const moveSpeed = 0.15;
 const rotSpeed = 0.1;
 
-function setupSpi() {
-    SPI2.setup({ sck: PIN_SCK, data0: 38, data1: 39, data2: 41, data3: 45, baud: SPI_BAUD, mode: SPI_MODE, order: 'lsb' });
-}
-function buildSyncBuffer() {
-    const buffer = new Uint8Array(SYNC_WORDS.length * 2);
-    const view = new DataView(buffer.buffer);
-    for (let i = 0; i < SYNC_WORDS.length; i++) view.setUint16(i * 2, SYNC_WORDS[i], true);
-    return buffer;
-}
-function buildModesetBuffer() {
-    const buffer = new Uint8Array(8);
-    const view = new DataView(buffer.buffer);
-    view.setUint8(0, MODE_MAGIC); view.setUint8(2, Format.RGB_565_LITTLE); view.setUint16(4, PANEL_WIDTH, true);
-    return buffer;
-}
-
 async function runRaycaster() {
     setupSpi();
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(PANEL_WIDTH * PANEL_HEIGHT * 2);
     const syncBuffer = buildSyncBuffer();
-    const modesetBuffer = buildModesetBuffer();
+    const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_565_LITTLE);
 
     // We reuse this scene object every frame to avoid massive memory garbage collection
-    const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1] });
+    const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255] });
 
     while (true) {
         // --- 1. INPUT & MOVEMENT ---
@@ -165,13 +143,13 @@ async function runRaycaster() {
 
             let wallColor;
             let tile = worldMap[mapX][mapY];
-            if (tile === 1) wallColor = [0, 0, 200, 1];       // Blue
-            else if (tile === 2) wallColor = [200, 0, 0, 1];  // Red
-            else if (tile === 3) wallColor = [0, 200, 0, 1];  // Green
-            else wallColor = [200, 200, 200, 1];
+            if (tile === 1) wallColor = [0, 0, 200, 255];       // Blue
+            else if (tile === 2) wallColor = [200, 0, 0, 255];  // Red
+            else if (tile === 3) wallColor = [0, 200, 0, 255];  // Green
+            else wallColor = [200, 200, 200, 255];
 
             if (side === 1) {
-                wallColor = [wallColor[0] / 2, wallColor[1] / 2, wallColor[2] / 2, 1];
+                wallColor = [wallColor[0] / 2, wallColor[1] / 2, wallColor[2] / 2, 255];
             }
 
             scene.add(new Rectangle({
@@ -186,11 +164,9 @@ async function runRaycaster() {
 
         // --- 3. RENDER FRAME ---
         renderer.render(scene, renderBuffer, false, Format.RGB_565_LITTLE);
-        SPI2.transfer(syncBuffer, PIN_CS, 0, true);
-        SPI2.transfer(modesetBuffer, PIN_CS, 0, true);
-        SPI2.transfer(renderBuffer, PIN_CS, 0, true);
+        sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
 
-        await sleep(33);
+        await sleep(1);
     }
 }
 
