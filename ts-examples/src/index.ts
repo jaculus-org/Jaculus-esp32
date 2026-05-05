@@ -2,4 +2,5 @@
 // import './snakeDisplay.js';
 // import './asteroids.js'
 // import './doom.js'
-import './renderTest.js'
+// import './renderTest.js'
+import './tetris.js'

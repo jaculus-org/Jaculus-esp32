@@ -10,7 +10,7 @@ import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from 
 const PANEL_WIDTH = 64;
 const PANEL_HEIGHT = 64;
 const GRID_SIZE = 16;
-const CELL_SIZE = PANEL_WIDTH / GRID_SIZE; // 4 pixels per grid unit
+const CELL_SIZE = PANEL_WIDTH / GRID_SIZE;
 
 const ADC_X = 4;
 const ADC_Y = 5;
@@ -37,7 +37,7 @@ function getJoystickDirection(currentDir) {
             if (dy < 0 && currentDir.y === 0) return { x: 0, y: -1 }; // Up
         }
     }
-    return currentDir; // Return original direction if no input
+    return currentDir;
 }
 
 // --- GAME LOGIC ---
@@ -59,8 +59,8 @@ async function runSnake() {
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_565_LITTLE);
 
-    const FRAME_TIME = 1;   // The speed of the snake
-    const POLL_INTERVAL = 1; // Poll the joystick every 25ms
+    const FRAME_TIME = 15;
+    const POLL_INTERVAL = 1;
 
     while (true) {
         // --- 1. Update Logic ---
