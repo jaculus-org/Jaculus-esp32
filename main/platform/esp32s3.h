@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "espCommon.h"
+#include "soc/adc_channel.h"
 #include <sdkconfig.h>
 
 struct PlatformInfo {
@@ -28,7 +29,17 @@ struct PlatformInfo {
             { 7, { 1, ADC1_GPIO7_CHANNEL } },
             { 8, { 1, ADC1_GPIO8_CHANNEL } },
             { 9, { 1, ADC1_GPIO9_CHANNEL } },
-            { 10, { 1, ADC1_GPIO10_CHANNEL } }
+            { 10, { 1, ADC1_GPIO10_CHANNEL } },
+            { 11, { 2, ADC2_GPIO11_CHANNEL } },
+            { 12, { 2, ADC2_GPIO12_CHANNEL } },
+            { 13, { 2, ADC2_GPIO13_CHANNEL } },
+            { 14, { 2, ADC2_GPIO14_CHANNEL } },
+            { 15, { 2, ADC2_GPIO15_CHANNEL } },
+            { 16, { 2, ADC2_GPIO16_CHANNEL } },
+            { 17, { 2, ADC2_GPIO17_CHANNEL } },
+            { 18, { 2, ADC2_GPIO18_CHANNEL } },
+            { 19, { 2, ADC2_GPIO19_CHANNEL } },
+            { 20, { 2, ADC2_GPIO20_CHANNEL } },
         };
         static inline const std::set<int> INTERRUPT_PINS = DIGITAL_PINS;
         static inline constexpr int DEFAULT_I2C_SDA_PIN = 0;
