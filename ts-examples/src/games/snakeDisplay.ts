@@ -1,10 +1,9 @@
 import { Renderer } from 'renderer';
 import { Collection, Rectangle } from 'shapes';
-import { SPI2 } from 'spi';
-import { Format } from './constants.js';
-import * as gpio from 'gpio';
+import { Format } from '../constants.js';
 import * as adc from "adc";
-import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from './spiSender.js';
+import * as gpio from "gpio";
+import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from '../spiSender.js';
 
 // --- CONFIGURATION ---
 const PANEL_WIDTH = 64;
@@ -52,8 +51,8 @@ function newFood() {
     };
 }
 
-async function runSnake() {
-    setupSpi();
+export async function runSnake(startSpi: boolean) {
+    if (startSpi) { setupSpi(); }
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(PANEL_WIDTH * PANEL_HEIGHT * 2);
     const syncBuffer = buildSyncBuffer();
@@ -62,7 +61,7 @@ async function runSnake() {
     const FRAME_TIME = 15;
     const POLL_INTERVAL = 1;
 
-    while (true) {
+    while (gpio.read(7)) {
         // --- 1. Update Logic ---
         let next = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
@@ -117,5 +116,3 @@ async function runSnake() {
         }
     }
 }
-
-runSnake();

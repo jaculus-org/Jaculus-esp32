@@ -1,8 +1,9 @@
 import { Renderer } from 'renderer';
 import { Collection, Rectangle } from 'shapes';
-import { Format } from './constants.js';
+import { Format } from '../constants.js';
 import * as adc from "adc";
-import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from './spiSender.js';
+import * as gpio from "gpio";
+import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from '../spiSender.js';
 
 // --- CONFIGURATION & SPI SETUP ---
 const PANEL_WIDTH = 64;
@@ -41,8 +42,8 @@ let planeY = 0.66; // FOV adjustment
 const moveSpeed = 0.15;
 const rotSpeed = 0.1;
 
-async function runRaycaster() {
-    setupSpi();
+export async function runDoom(startSpi: boolean) {
+    if (startSpi) { setupSpi(); }
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(PANEL_WIDTH * PANEL_HEIGHT * 2);
     const syncBuffer = buildSyncBuffer();
@@ -51,7 +52,7 @@ async function runRaycaster() {
     // We reuse this scene object every frame to avoid massive memory garbage collection
     const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255] });
 
-    while (true) {
+    while (gpio.read(7)) {
         // --- 1. INPUT & MOVEMENT ---
         let rawX = adc.read(JOY_X) - CENTER;
         let rawY = adc.read(JOY_Y) - CENTER;
@@ -169,5 +170,3 @@ async function runRaycaster() {
         await sleep(1);
     }
 }
-
-runRaycaster();

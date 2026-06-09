@@ -1,16 +1,16 @@
 import { Font, Renderer } from 'renderer';
 import { Collection, Rectangle } from 'shapes';
-import { Format } from './constants.js';
+import { Format } from '../constants.js';
 import * as adc from "adc";
-import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from './spiSender.js';
+import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from '../spiSender.js';
+import * as gpio from "gpio";
 
 // --- CONFIGURATION ---
 const PANEL_WIDTH = 64;
 const PANEL_HEIGHT = 64;
 
 // --- HARDWARE CONFIG ---
-// Using the Y-axes from your dual-stick setup
-const P1_Y_PIN = 6; // Left Stick Y
+const P1_Y_PIN = 15; // Left Stick Y
 const P2_Y_PIN = 5; // Right Stick Y
 
 adc.configure(P1_Y_PIN);
@@ -26,19 +26,19 @@ const PADDLE_MARGIN = 2;
 const BALL_SIZE = 2;
 const MAX_BALL_SPEED = 4;
 const INITIAL_BALL_SPEED = 1.5;
+const INITIAL_PADDLE_SPEED = 2.5;
 
 const font = new Font();
 
 // --- GAME STATE ---
-let p1 = { y: 26, score: 0, speed: 2.5 };
-let p2 = { y: 26, score: 0, speed: 2.5 };
+let p1 = { y: 26, score: 0, speed: INITIAL_PADDLE_SPEED };
+let p2 = { y: 26, score: 0, speed: INITIAL_PADDLE_SPEED };
 let ball = { x: 31, y: 31, vx: INITIAL_BALL_SPEED, vy: 0.5 };
 
 // --- INPUT UTILITY ---
 function getJoystickDirection(pin) {
     const raw = adc.read(pin) - CENTER;
     if (Math.abs(raw) < DEADZONE) return 0;
-    // Normalize to 1 or -1 based on direction
     return raw > 0 ? 1 : -1;
 }
 
@@ -67,24 +67,23 @@ function checkPaddleCollision(paddleX, paddleY, isLeftPaddle) {
         // Correct position to prevent getting stuck inside the paddle
         ball.x = isLeftPaddle ? paddleX + PADDLE_W : paddleX - BALL_SIZE;
 
-        // Reverse X velocity and increase speed slightly
         ball.vx = -ball.vx * 1.1;
 
-        // Cap maximum speed
         if (ball.vx > MAX_BALL_SPEED) ball.vx = MAX_BALL_SPEED;
         if (ball.vx < -MAX_BALL_SPEED) ball.vx = -MAX_BALL_SPEED;
 
-        // Add "English" (Vertical deflection based on hit position relative to paddle center)
         const paddleCenter = paddleY + (PADDLE_H / 2);
         const ballCenter = ball.y + (BALL_SIZE / 2);
         const hitFactor = (ballCenter - paddleCenter) / (PADDLE_H / 2);
         ball.vy += hitFactor * 1.5;
+        return true;
     }
+    return false;
 }
 
 // --- MAIN LOOP ---
-export async function runPong() {
-    setupSpi();
+export async function runPong(setup: boolean) {
+    if (setup) { setupSpi(); }
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(PANEL_WIDTH * PANEL_HEIGHT * 3);
     const syncBuffer = buildSyncBuffer();
@@ -92,7 +91,7 @@ export async function runPong() {
 
     const POLL_INTERVAL = 16; // Approx 60fps
 
-    while (true) {
+    while (gpio.read(7)) {
         // --- 1. Input & Update ---
         const p1Move = getJoystickDirection(P1_Y_PIN);
         const p2Move = getJoystickDirection(P2_Y_PIN);
@@ -117,16 +116,24 @@ export async function runPong() {
         }
 
         // Paddle Collisions
-        checkPaddleCollision(PADDLE_MARGIN, p1.y, true);
-        checkPaddleCollision(PANEL_WIDTH - PADDLE_MARGIN - PADDLE_W, p2.y, false);
+        let collided = checkPaddleCollision(PADDLE_MARGIN, p1.y, true);
+        collided = collided || checkPaddleCollision(PANEL_WIDTH - PADDLE_MARGIN - PADDLE_W, p2.y, false);
+        if (collided) {
+            p1.speed += 0.1
+            p2.speed += 0.1
+        }
 
         // Scoring
         if (ball.x < 0) {
             p2.score++;
             resetBall(2);
+            p1.speed = INITIAL_PADDLE_SPEED;
+            p2.speed = INITIAL_PADDLE_SPEED;
         } else if (ball.x > PANEL_WIDTH) {
             p1.score++;
             resetBall(1);
+            p1.speed = INITIAL_PADDLE_SPEED;
+            p2.speed = INITIAL_PADDLE_SPEED;
         }
 
         // --- 2. Render Scene ---
@@ -205,6 +212,8 @@ export async function runPong() {
 
         await sleep(POLL_INTERVAL);
     }
-}
 
-runPong();
+    p1.score = 0;
+    p2.score = 0;
+    resetBall(0);
+}

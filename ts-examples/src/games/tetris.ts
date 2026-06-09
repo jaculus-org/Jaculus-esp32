@@ -1,8 +1,9 @@
 import { Font, Renderer } from 'renderer';
 import { Collection, Rectangle } from 'shapes';
-import { Format } from './constants.js';
+import { Format } from '../constants.js';
 import * as adc from "adc";
-import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from './spiSender.js';
+import * as gpio from "gpio";
+import { buildModesetBuffer, buildSyncBuffer, sendRpHub75Frame, setupSpi } from '../spiSender.js';
 
 // --- CONFIGURATION ---
 const PANEL_WIDTH = 64;
@@ -139,8 +140,8 @@ function clearLines() {
     return linesCleared;
 }
 
-async function runTetris() {
-    setupSpi();
+export async function runTetris(startSpi: boolean) {
+    if (startSpi) { setupSpi(); }
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(PANEL_WIDTH * PANEL_HEIGHT * 2);
     const syncBuffer = buildSyncBuffer();
@@ -158,7 +159,7 @@ async function runTetris() {
 
     spawnPiece();
 
-    while (true) {
+    while (gpio.read(7)) {
         // --- 1. Input & Update Logic ---
         updateJoystickState(joyState);
 
@@ -349,5 +350,3 @@ async function runTetris() {
         await sleep(POLL_INTERVAL);
     }
 }
-
-runTetris();
