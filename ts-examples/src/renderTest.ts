@@ -97,7 +97,6 @@ export async function solarSystemExample() {
 export async function rotatedGridExample() {
     setupSpi();
 
-
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
     const syncBuffer = buildSyncBuffer();
@@ -105,7 +104,7 @@ export async function rotatedGridExample() {
 
     const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255], z: 0 });
     for (let i = 0; i < 14; i++) {
-        for (let j = 0; j < 14; j++) {
+        for (let j = 0; j < 5; j++) {
             let rect = new Rectangle({ x: i * 5, y: j * 5, width: 4, height: 4, color: [12, 54, 160, 255], fill: true });
             rect.rotate(30);
             scene.add(rect);
@@ -118,6 +117,7 @@ export async function rotatedGridExample() {
         await sleep(1);
     }
 }
+
 export async function gridExample() {
     setupSpi();
 
@@ -153,12 +153,12 @@ export async function rectExample() {
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
 
     const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255], z: 0 });
-    const rect = new Rectangle({ x: 30, y: 30, width: 20, height: 10, color: [12, 54, 160, 255], fill: true });
-    rect.rotate(30);
+    const rect = new Rectangle({ x: 0, y: 0, width: 64, height: 64, color: [255, 255, 255, 255], fill: true });
     scene.add(rect);
 
 
     while (true) {
+        rect.rotate(2);
         renderer.render(scene, renderBuffer, true, Format.RGB_888, -1);
         sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
         await sleep(1);
@@ -252,4 +252,27 @@ export async function textureExample() {
     }
 }
 
-solarSystemExample();
+async function generatedScene() {
+    setupSpi();
+    const renderer = new Renderer(64, 64);
+    const renderBuffer = new ArrayBuffer(64 * 64 * 3);
+    const syncBuffer = buildSyncBuffer();
+    const modesetBuffer = buildModesetBuffer(64, Format.RGB_888); const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1] });
+
+    const rectangle_d3t = new Rectangle({
+        x: 24, y: 20,
+        color: [241, 9, 6, 75],
+        width: 26, height: 16,
+        fill: true
+    });
+    rectangle_d3t.rotate(18);
+    scene.add(rectangle_d3t);
+
+    while (true) {
+        renderer.render(scene, renderBuffer, true, Format.RGB_888, -1);
+        sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
+        await sleep(100);
+    }
+}
+
+// generatedScene();
