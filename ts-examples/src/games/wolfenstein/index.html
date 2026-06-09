@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raycaster Map Editor</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            background: #1e1e1e;
+            color: #eee;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 200px;
+        }
+
+        .tool-btn {
+            padding: 10px;
+            cursor: pointer;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tool-btn.active {
+            border-color: #4CAF50;
+            background: #454545;
+        }
+
+        .color-box {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+        }
+
+        canvas {
+            border: 2px solid #555;
+            cursor: crosshair;
+            background: #000;
+        }
+
+        textarea {
+            width: 500px;
+            height: 600px;
+            background: #1e1e1e;
+            color: #9cdcfe;
+            font-family: monospace;
+            padding: 10px;
+            border: 1px solid #555;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        button.action {
+            padding: 10px;
+            background: #007acc;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        button.action:hover {
+            background: #005999;
+        }
+
+        button.action.import {
+            background: #e67e22;
+        }
+
+        button.action.import:hover {
+            background: #d35400;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="toolbar" id="toolbar">
+        <label>Cols: <input type="number" name="cols" value="15" min="5" style="width: 50px;" /></label>
+        <label>Rows: <input type="number" name="rows" value="15" min="5" style="width: 50px;" /></label>
+
+        <h3>Walls</h3>
+        <button class="tool-btn active" data-type="wall" data-val="1"><span class="color-box"
+                style="background:#888;"></span> Stone (1)</button>
+        <button class="tool-btn" data-type="wall" data-val="2"><span class="color-box"
+                style="background:#4a6984;"></span> Blue Stone (2)</button>
+        <button class="tool-btn" data-type="wall" data-val="3"><span class="color-box"
+                style="background:#8b5a2b;"></span> Wood (3)</button>
+        <button class="tool-btn" data-type="wall" data-val="4"><span class="color-box"
+                style="background:#d4af37;"></span> Door Horizontal (4)</button>
+        <button class="tool-btn" data-type="wall" data-val="5"><span class="color-box"
+                style="background:#d4af37;"></span> Door Vertical (5)</button>
+
+        <h3>Entities</h3>
+        <button class="tool-btn" data-type="entity" data-id="potion"><span class="color-box"
+                style="background:#0f0; border-radius:50%;"></span> Potion</button>
+        <button class="tool-btn" data-type="entity" data-id="enemy"><span class="color-box"
+                style="background:#f00; border-radius:50%;"></span> Guard</button>
+
+        <h3>Tools</h3>
+        <button class="tool-btn" data-type="spawn" data-val="0"><span class="color-box"
+                style="background:limegreen; border:1px solid #444;"></span> Spawn point</button>
+        <button class="tool-btn" data-type="erase" data-val="0"><span class="color-box"
+                style="background:#000; border:1px solid #444;"></span> Eraser (0)</button>
+    </div>
+
+    <div class="main-content">
+        <canvas id="mapCanvas" width="480" height="480"></canvas>
+        <div class="action-container">
+            <button class="action" onclick="generateCode()">Generate Export Code</button>
+            <button class="action import" onclick="importCode()">Import Code</button>
+        </div>
+    </div>
+
+    <textarea id="output" placeholder="Exported code will appear here... Paste code here and click Import!"></textarea>
+
+    <script>
+        const TILE_SIZE = 32;
+        let COLS = 15;
+        let ROWS = 15;
+
+        let mapData = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+        let entities = [];
+
+        let currentTool = {type: 'wall', val: 1};
+        let isDrawing = false;
+        let spawnPoint = {x: 1.5, y: 1.5};
+
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeMap() {
+            const newCols = parseInt(document.querySelector('input[name="cols"]').value) || 15;
+            const newRows = parseInt(document.querySelector('input[name="rows"]').value) || 15;
+
+            let newMapData = Array.from({length: newRows}, (_, y) =>
+                Array.from({length: newCols}, (_, x) => {
+                    if (y < ROWS && x < COLS) return mapData[y][x];
+                    return 0;
+                })
+            );
+
+            entities = entities.filter(ent => ent.x < newCols && ent.y < newRows);
+
+            if (spawnPoint.x >= newCols || spawnPoint.y >= newRows) {
+                spawnPoint = {x: 1.5, y: 1.5};
+            }
+
+            COLS = newCols;
+            ROWS = newRows;
+            mapData = newMapData;
+
+            canvas.width = COLS * TILE_SIZE;
+            canvas.height = ROWS * TILE_SIZE;
+
+            if (typeof drawMap === "function") {
+                drawMap();
+            }
+        }
+
+        document.querySelector('input[name="cols"]').addEventListener('change', resizeMap);
+        document.querySelector('input[name="rows"]').addEventListener('change', resizeMap);
+
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool.type = btn.dataset.type;
+                currentTool.val = btn.dataset.val ? parseInt(btn.dataset.val) : btn.dataset.id;
+            });
+        });
+
+        function getTileCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / TILE_SIZE);
+            const y = Math.floor((e.clientY - rect.top) / TILE_SIZE);
+            return {x, y};
+        }
+
+        function applyTool(x, y) {
+            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return;
+
+            if (currentTool.type === 'wall') {
+                mapData[y][x] = currentTool.val;
+                entities = entities.filter(e => Math.floor(e.x) !== x || Math.floor(e.y) !== y);
+            } else if (currentTool.type === 'erase') {
+                mapData[y][x] = 0;
+                entities = entities.filter(e => Math.floor(e.x) !== x || Math.floor(e.y) !== y);
+            } else if (currentTool.type === 'spawn') {
+                mapData[y][x] = 0;
+                spawnPoint.x = x + 0.5;
+                spawnPoint.y = y + 0.5;
+            } else if (currentTool.type === 'entity') {
+                mapData[y][x] = 0;
+                entities = entities.filter(e => Math.floor(e.x) !== x || Math.floor(e.y) !== y);
+                entities.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    type: currentTool.val
+                });
+            }
+            drawMap();
+        }
+
+        canvas.addEventListener('mousedown', (e) => {isDrawing = true; const {x, y} = getTileCoords(e); applyTool(x, y);});
+        canvas.addEventListener('mousemove', (e) => {if (isDrawing) {const {x, y} = getTileCoords(e); applyTool(x, y);} });
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+        function drawMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Walls
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    ctx.strokeStyle = '#333';
+                    ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+                    const val = mapData[y][x];
+                    if (val === 1) ctx.fillStyle = '#888';
+                    else if (val === 2) ctx.fillStyle = '#4a6984';
+                    else if (val === 3) ctx.fillStyle = '#8b5a2b';
+                    else if (val === 4) ctx.fillStyle = '#d4af37';
+                    else if (val === 5) ctx.fillStyle = '#d4af37';
+                    else continue;
+
+                    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+
+            // Draw Entities
+            entities.forEach(ent => {
+                ctx.beginPath();
+                ctx.arc(ent.x * TILE_SIZE, ent.y * TILE_SIZE, 8, 0, Math.PI * 2);
+                ctx.fillStyle = ent.type === 'potion' ? '#0f0' : '#f00';
+                ctx.fill();
+                ctx.stroke();
+            });
+
+            // Draw Spawn
+            ctx.beginPath();
+            ctx.arc(spawnPoint.x * TILE_SIZE, spawnPoint.y * TILE_SIZE, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#32CD32';
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function generateCode() {
+            let code = `export const worldMap = [\n`;
+            for (let y = 0; y < ROWS; y++) {
+                code += `    [${mapData[y].join(', ')}],\n`;
+            }
+            code += `];\n\n`;
+
+            code += `export let entities: (Entity | EnemyEntity)[] = [\n`;
+            entities.forEach(ent => {
+                // Note: The export swaps internal X and Y
+                if (ent.type === 'potion') {
+                    code += `    { x: ${ent.y}, y: ${ent.x}, tex: 1, scale: 0.5, active: true, type: 'potion' },\n`;
+                } else if (ent.type === 'enemy') {
+                    code += `    {\n`;
+                    code += `        x: ${ent.y}, y: ${ent.x}, tex: 2, scale: 0.90, active: true, type: 'enemy',\n`;
+                    code += `        health: GUARD_CONFIG.maxHealth,\n`;
+                    code += `        state: 'IDLE',\n`;
+                    code += `        angle: 0,\n`;
+                    code += `        stateTimer: 0,\n`;
+                    code += `        wanderTimer: 0,\n`;
+                    code += `        animationFrame: 0,\n`;
+                    code += `        config: GUARD_CONFIG\n`;
+                    code += `    },\n`;
+                }
+            });
+            code += `];\n\n`;
+
+            code += `export const INITIAL_X = ${spawnPoint.y};\nexport const INITIAL_Y = ${spawnPoint.x};`
+
+            document.getElementById('output').value = code;
+        }
+
+        function importCode() {
+            const code = document.getElementById('output').value;
+
+            // 1. Parse worldMap
+            const mapMatch = code.match(/export const worldMap = \[([\s\S]*?)\];/);
+            if (mapMatch) {
+                const rowsText = mapMatch[1].trim().split('\n');
+                const newMapData = [];
+                for (let rowText of rowsText) {
+                    const cleanRow = rowText.match(/\d+/g); // Extract numbers only
+                    if (cleanRow) {
+                        newMapData.push(cleanRow.map(Number));
+                    }
+                }
+
+                if (newMapData.length > 0) {
+                    mapData = newMapData;
+                    ROWS = mapData.length;
+                    COLS = mapData[0].length;
+
+                    document.querySelector('input[name="rows"]').value = ROWS;
+                    document.querySelector('input[name="cols"]').value = COLS;
+                    canvas.width = COLS * TILE_SIZE;
+                    canvas.height = ROWS * TILE_SIZE;
+                }
+            }
+
+            // 2. Parse Entities
+            entities = [];
+            // Regex finds x, y, and type dynamically
+            const entityMatches = code.matchAll(/x:\s*([\d.]+),\s*y:\s*([\d.]+),[\s\S]*?type:\s*'([^']+)'/g);
+            for (const match of entityMatches) {
+                const impX = parseFloat(match[1]);
+                const impY = parseFloat(match[2]);
+                const type = match[3];
+                // Reversing the export swap (exported x = internal y, exported y = internal x)
+                entities.push({x: impY, y: impX, type: type});
+            }
+
+            // 3. Parse Spawn Point
+            const initXMatch = code.match(/export const INITIAL_X = ([\d.]+);/);
+            const initYMatch = code.match(/export const INITIAL_Y = ([\d.]+);/);
+            if (initXMatch && initYMatch) {
+                // Reversing the export swap
+                spawnPoint.y = parseFloat(initXMatch[1]);
+                spawnPoint.x = parseFloat(initYMatch[1]);
+            }
+
+            drawMap();
+            alert("Map imported successfully!");
+        }
+
+        // Initialize blank map
+        drawMap();
+    </script>
+</body>
+
+</html>
