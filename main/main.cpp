@@ -22,6 +22,7 @@
 #include "espFeatures/gridui/gridUiFeature.h"
 #include "espFeatures/hub75/hub75Feature.h"
 #include "espFeatures/i2cFeature.h"
+#include "espFeatures/raycasterFeature.h"
 #include "espFeatures/spiFeature.h"
 #include "espFeatures/ledcFeature.h"
 #include "espFeatures/motorFeature.h"
@@ -96,6 +97,7 @@ using Machine = jac::ComposeMachine<
     WifiFeature,
     GridUiFeature,
     RendererFeature,
+    RaycasterFeature,
     Hub75Feature,
     jac::KeyValueFeature,
     SelectFeature,
