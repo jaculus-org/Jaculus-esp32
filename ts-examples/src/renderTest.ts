@@ -2,6 +2,7 @@ import { Font, Renderer, Texture } from 'renderer';
 import { Collection, Circle, Rectangle } from 'shapes';
 import { Format } from './constants.js';
 import { setupSpi, buildSyncBuffer, buildModesetBuffer, sendRpHub75Frame } from './spiSender.js';
+import { rectangleExample } from './rp-hub75-spi.js';
 
 const PANEL_WIDTH = 64;
 const PANEL_HEIGHT = 64;
@@ -121,7 +122,6 @@ export async function rotatedGridExample() {
 export async function gridExample() {
     setupSpi();
 
-
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
     const syncBuffer = buildSyncBuffer();
@@ -145,7 +145,6 @@ export async function gridExample() {
 
 export async function rectExample() {
     setupSpi();
-
 
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
@@ -205,7 +204,6 @@ export async function rpHub75SpiExample() {
 export async function textExample() {
     setupSpi();
 
-
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
     const font = new Font();
@@ -221,7 +219,6 @@ export async function textExample() {
 
 export async function textureExample() {
     setupSpi();
-
 
     const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
@@ -257,16 +254,18 @@ async function generatedScene() {
     const renderer = new Renderer(64, 64);
     const renderBuffer = new ArrayBuffer(64 * 64 * 3);
     const syncBuffer = buildSyncBuffer();
-    const modesetBuffer = buildModesetBuffer(64, Format.RGB_888); const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 1] });
+    const modesetBuffer = buildModesetBuffer(64, Format.RGB_888);
+    const scene = new Collection({ x: 0, y: 0, color: [0, 0, 0, 255] });
 
     const rectangle_d3t = new Rectangle({
         x: 24, y: 20,
-        color: [241, 9, 6, 75],
+        color: [241, 9, 6, 255],
         width: 26, height: 16,
         fill: true
     });
     rectangle_d3t.rotate(18);
     scene.add(rectangle_d3t);
+    console.log("Rendering");
 
     while (true) {
         renderer.render(scene, renderBuffer, true, Format.RGB_888, -1);
@@ -275,4 +274,4 @@ async function generatedScene() {
     }
 }
 
-// generatedScene();
+rectangleExample();

@@ -201,10 +201,10 @@ declare module "shapes" {
         intersects(other: Shape): boolean;
 
         /**
-         * Attach a collider to the shape.
-         * @param collider Optional custom collider.
+         * Attach the shape's default collider. Custom colliders are not
+         * supported from JS; any argument passed is ignored.
          */
-        addCollider(collider?: any): void;
+        addCollider(): void;
 
         /**
          * Remove the collider from the shape.

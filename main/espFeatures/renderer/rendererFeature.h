@@ -230,7 +230,7 @@ template <> struct jac::ConvTraits<Color> {
         auto array = val.to<jac::ArrayWeak>();
         return Color(array.get(0).to<uint8_t>(), array.get(1).to<uint8_t>(),
                      array.get(2).to<uint8_t>(),
-                     array.length() > 3 ? array.get(3).to<float>() : 1.0f);
+                     array.length() > 3 ? array.get(3).to<uint8_t>() : 255);
     }
 
     static jac::Value to(ContextRef ctx, const Color &color) {
@@ -616,26 +616,16 @@ class ShapeProtoBuilder
 
         proto.defineProperty(
             "addCollider",
-            ff.newFunctionThisVariadic([](jac::ContextRef ctx,
-                                          jac::ValueWeak thisVal,
-                                          std::vector<jac::ValueWeak> args) {
+            ff.newFunctionThis([](jac::ContextRef ctx,
+                                  jac::ValueWeak thisVal) {
+                // No Collider type is exposed to JS, so there is no safe way
+                // to obtain a real Collider* from a JS value here. Always
+                // install the shape's default collider; addCollider()/the
+                // destructor will delete it, so never pass it a pointer of
+                // unverified type.
                 Shape *shape = unwrapShape(ctx, thisVal);
                 if (shape) {
-                    Collider *collider = nullptr;
-
-                    if (args.size() > 0) {
-                        jac::ValueWeak colliderVal = args[0];
-
-                        if (!colliderVal.isUndefined() &&
-                            !colliderVal.isNull()) {
-                            collider =
-                                reinterpret_cast<Collider *>(JS_GetOpaque(
-                                    colliderVal.getVal(),
-                                    JS_GetClassID(colliderVal.getVal())));
-                        }
-                    }
-
-                    shape->addCollider(collider);
+                    shape->addCollider(nullptr);
                 }
             }),
             jac::PropFlags::Enumerable);
