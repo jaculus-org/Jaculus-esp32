@@ -273,14 +273,14 @@ class Raycaster {
                         std::clamp((int)currentFloorY, 0, m_mapHeight - 1);
 
                     if (y > drawEnd) {
-                        uint16_t floorColor = 0x2104; // Default
+                        uint16_t floorColor = 0x2104;
                         if (!m_floorMap.empty() && cellX < m_floorMap.size() &&
                             cellY < m_floorMap[0].size()) {
                             floorColor = m_floorMap[cellX][cellY];
                         }
                         drawPixel(raw, x, y, floorColor, format, bpp);
                     } else {
-                        uint16_t ceilColor = 0x0000; // Default
+                        uint16_t ceilColor = 0x0000;
                         if (!m_ceilingMap.empty() &&
                             cellX < m_ceilingMap.size() &&
                             cellY < m_ceilingMap[0].size()) {
@@ -370,8 +370,6 @@ class Raycaster {
             }
         }
     }
-
-    // --- STAGE 3: Render Weapon ---
 
     void renderWeaponOverlay(uint8_t *raw, int weaponFrame, int format,
                              size_t bpp) {
@@ -578,9 +576,7 @@ class RaycasterProtoBuilder : public jac::ProtoBuilder::Opaque<Raycaster>,
                 Raycaster *self = getOpaque(ctx, thisVal);
                 std::vector<std::vector<uint16_t>> map;
 
-                uint32_t mapLen =
-                    std::min(256,
-                             mapVal.length()); // Clamp to prevent bad_alloc
+                uint32_t mapLen = std::min(256, mapVal.length());
                 for (uint32_t i = 0; i < mapLen; i++) {
                     auto rowVal = mapVal.get(i).to<jac::ArrayWeak>();
                     uint32_t rowLen = std::min(256, rowVal.length());

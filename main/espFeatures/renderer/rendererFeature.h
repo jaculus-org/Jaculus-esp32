@@ -28,7 +28,6 @@
 #include <jac/machine/values.h>
 #include <memory>
 
-// Helper macro to debug slow code
 #define MEASURE_EXEC(name, code)                                               \
     do {                                                                       \
         uint32_t start = esp_cpu_get_cycle_count();                            \
@@ -618,11 +617,6 @@ class ShapeProtoBuilder
             "addCollider",
             ff.newFunctionThis([](jac::ContextRef ctx,
                                   jac::ValueWeak thisVal) {
-                // No Collider type is exposed to JS, so there is no safe way
-                // to obtain a real Collider* from a JS value here. Always
-                // install the shape's default collider; addCollider()/the
-                // destructor will delete it, so never pass it a pointer of
-                // unverified type.
                 Shape *shape = unwrapShape(ctx, thisVal);
                 if (shape) {
                     shape->addCollider(nullptr);
