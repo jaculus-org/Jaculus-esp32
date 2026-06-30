@@ -559,32 +559,32 @@ class ShapeProtoBuilder
         registerGetters(ctx, proto, ff,
                         {{"getX",
                           [](jac::ContextRef ctx, Shape *s) {
-                              return jac::Value::from(ctx, s->getX());
+                              return jac::Value::from(ctx, s->x());
                           }},
                          {"getY",
                           [](jac::ContextRef ctx, Shape *s) {
-                              return jac::Value::from(ctx, s->getY());
+                              return jac::Value::from(ctx, s->y());
                           }},
                          {"getZ",
                           [](jac::ContextRef ctx, Shape *s) {
-                              return jac::Value::from(ctx, s->getZ());
+                              return jac::Value::from(ctx, s->z());
                           }},
                          {"getRotationAngle",
                           [](jac::ContextRef ctx, Shape *s) {
                               return jac::Value::from(ctx,
-                                                      s->getRotationAngle());
+                                                      s->rotationAngle());
                           }},
                          {"getScaleX",
                           [](jac::ContextRef ctx, Shape *s) {
-                              return jac::Value::from(ctx, s->getScaleX());
+                              return jac::Value::from(ctx, s->scaleX());
                           }},
                          {"getScaleY",
                           [](jac::ContextRef ctx, Shape *s) {
-                              return jac::Value::from(ctx, s->getScaleY());
+                              return jac::Value::from(ctx, s->scaleY());
                           }},
 
                          {"getColor", [](jac::ContextRef ctx, Shape *s) {
-                              return jac::toValue(ctx, s->getColor());
+                              return jac::toValue(ctx, s->color());
                           }}});
     }
 
