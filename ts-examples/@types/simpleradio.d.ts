@@ -1,5 +1,6 @@
 declare module "simpleradio" {
-    type PacketDataType = "number" | "string" | "keyvalue";
+    type PacketDataType = "number" | "string" | "keyvalue" | "blob";
+    type BlobData = ArrayBuffer | Uint8Array | number[];
 
     interface PacketInfo {
         group: number;
@@ -15,7 +16,7 @@ declare module "simpleradio" {
 
     /**
      * Set the radio group.
-     * @param group The radio group to use, between 0 and 15 inclusive.
+     * @param group The radio group to use, between 0 and 255 inclusive.
      */
     function setGroup(group: number): void;
 
@@ -51,6 +52,12 @@ declare module "simpleradio" {
     function sendKeyValue(key: string, value: number): void;
 
     /**
+     * Send a binary blob.
+     * @param data The binary data to send.
+     */
+    function sendBlob(data: BlobData): void;
+
+    /**
      * Register a callback for a packet type.
      * @param type The packet type to register for.
      * @param callback The callback to register.
@@ -70,6 +77,13 @@ declare module "simpleradio" {
      * @param callback The callback to register.
      */
     function on(type: "keyvalue", callback: (key: string, value: number, info: PacketInfo) => void): void;
+
+    /**
+     * Register a callback for a packet type.
+     * @param type The packet type to register for.
+     * @param callback The callback to register.
+     */
+    function on(type: "blob", callback: (data: Uint8Array, info: PacketInfo) => void): void;
 
     /**
      * Unregister a callback for a packet type.
