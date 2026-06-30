@@ -24,3 +24,4 @@ add_custom_command(
 )
 
 add_library(resources STATIC ${CMAKE_CURRENT_BINARY_DIR}/resources.cpp)
+target_compile_options(resources PRIVATE "-fconstexpr-loop-limit=2000000")

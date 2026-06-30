@@ -5,9 +5,7 @@
 #include <unordered_map>
 
 #include "espCommon.h"
-
 #include <sdkconfig.h>
-
 
 struct PlatformInfo {
     static inline constexpr std::string NAME = "ESP32-S3";
@@ -38,6 +36,4 @@ struct PlatformInfo {
     };
 };
 
-
-template<class Next>
-using PlatformInfoFeature = EspCommon<PlatformInfo, Next>;
+template <class Next> using PlatformInfoFeature = EspCommon<PlatformInfo, Next>;
