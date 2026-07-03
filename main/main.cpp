@@ -26,6 +26,7 @@
 #include "espFeatures/ledcFeature.h"
 #include "espFeatures/motorFeature.h"
 #include "espFeatures/pulseCounterFeature.h"
+#include "espFeatures/rendererFeature.h"
 #include "espFeatures/selectFeature.h"
 #include "espFeatures/simpleRadioFeature.h"
 #include "espFeatures/smartLedFeature.h"
@@ -93,6 +94,7 @@ using Machine = jac::ComposeMachine<
     MotorFeature,
     WifiFeature,
     GridUiFeature,
+    RendererFeature,
     jac::KeyValueFeature,
     SelectFeature,
     UdpSocketFeature,
