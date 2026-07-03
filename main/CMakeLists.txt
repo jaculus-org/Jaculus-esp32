@@ -10,9 +10,12 @@ idf_component_register(
     REQUIRES jac-dcore jac-machine jac-link
              driver pthread spiffs vfs fatfs
              SmartLeds esp_timer Esp32-RBGridUI
+             renderer
 )
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE JAC_ESP32_VERSION="${JAC_ESP32_VERSION}")
+
+target_compile_options(${COMPONENT_LIB} PRIVATE "-mtext-section-literals")
 
 add_subdirectory(resources)
 target_link_libraries(${COMPONENT_LIB} PRIVATE resources)
