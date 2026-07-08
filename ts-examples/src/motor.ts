@@ -1,7 +1,4 @@
 import { Motor, RegParams } from "motor";
-import * as ledc from "ledc";
-
-ledc.configureTimer(0, 20000, 10);
 
 let reg: RegParams = {
     kp: 7000,
@@ -21,11 +18,6 @@ let left = new Motor({
         encA: 39,
         encB: 40
     },
-    ledc: {
-        timer: 0,
-        channelA: 0,
-        channelB: 1
-    },
     reg,
     encTicks: 812,  // ticks per revolution
     circumference: 34 * Math.PI  // mm
@@ -37,11 +29,6 @@ let right = new Motor({
         motB: 13,
         encA: 42,
         encB: 41
-    },
-    ledc: {
-        timer: 0,
-        channelA: 2,
-        channelB: 3
     },
     reg,
     encTicks: 812,  // ticks per revolution

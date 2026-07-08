@@ -1,5 +1,5 @@
 import * as adc from "adc";
-import * as ledc from "ledc";
+import { PWM } from "pwm";
 
 /**
  * Example showing how to control servos using the LEDC peripheral.
@@ -7,9 +7,15 @@ import * as ledc from "ledc";
 
 const INPUT_PIN = 1;
 const SERVO_PIN = 17;
+const RESOLUTION = 12;
+const MAX_DUTY = (1 << RESOLUTION) - 1;
 
-ledc.configureTimer(0, 50, 12);
-ledc.configureChannel(0, SERVO_PIN, 0, 1023);
+const servo = new PWM({
+    pin: SERVO_PIN,
+    frequency: 50,
+    resolution: RESOLUTION,
+    duty: MAX_DUTY,
+});
 
 
 setInterval(() => {
@@ -19,7 +25,7 @@ setInterval(() => {
     const ms = (value / 1023) + 1;
 
     // convert to a duty cycle
-    const duty = (ms / 20) * 1023;
+    const duty = (ms / 20) * MAX_DUTY;
 
-    ledc.setDuty(0, duty);
+    servo.setDuty(duty);
 }, 20);

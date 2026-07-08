@@ -23,7 +23,7 @@
 #include "espFeatures/i2cFeature.h"
 #include "espFeatures/oneWireFeature.h"
 #include "espFeatures/spiFeature.h"
-#include "espFeatures/ledcFeature.h"
+#include "espFeatures/pwmFeature.h"
 #include "espFeatures/motorFeature.h"
 #include "espFeatures/pulseCounterFeature.h"
 #include "espFeatures/selectFeature.h"
@@ -82,7 +82,7 @@ using Machine = jac::ComposeMachine<
     ExtendLifetimeFeature,
     ConvertFeature,
     GpioFeature,
-    LedcFeature,
+    PwmFeature,
     AdcFeature,
     I2CFeature,
     OneWireFeature,

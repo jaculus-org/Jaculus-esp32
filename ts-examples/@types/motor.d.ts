@@ -9,12 +9,6 @@ declare module "motor" {
         encB: number;
     };
 
-    type LedcConfig = {
-        timer: number;
-        channelA: number;
-        channelB: number;
-    };
-
     type RegParams = {
         // All values must be integers, defaults to 0
         kp?: number;            // Proportional gain
@@ -33,7 +27,7 @@ declare module "motor" {
          * @param options Motor configuration
          * @note Units used in the circumference parameter determines the units used in the other methods
          */
-        constructor(options: { pins: MotorPins, ledc: LedcConfig, reg: RegParams, encTicks: number, circumference: number });
+        constructor(options: { pins: MotorPins, reg: RegParams, encTicks: number, circumference: number, frequency?: number });
 
         /**
          * Set the speed of the motor

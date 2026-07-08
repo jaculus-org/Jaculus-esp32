@@ -1,4 +1,4 @@
-import * as ledc from "ledc";
+import { VariablePWM } from "pwm";
 
 /**
  * Example showing how to use the LEDC to control the frequency of a piezo.
@@ -6,8 +6,11 @@ import * as ledc from "ledc";
 
 const PIEZO_PIN = 18;
 
-ledc.configureTimer(0, 1000);
-ledc.configureChannel(0, PIEZO_PIN, 0, 512);
+const piezo = new VariablePWM({
+    pin: PIEZO_PIN,
+    frequency: 1000,
+    duty: 512,
+});
 
 let frequency = 1000;
 let step = 10;
@@ -22,5 +25,5 @@ setInterval(() => {
         frequency = 1000;
         step *= -1;
     }
-    ledc.setFrequency(0, frequency);
+    piezo.setFrequency(frequency);
 }, 10);
