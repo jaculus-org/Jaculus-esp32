@@ -9,6 +9,7 @@
 #include <optional>
 #include <array>
 
+#include "driver/spi_common.h"
 #include "driver/spi_master.h"
 #include "freertos/FreeRTOS.h"
 #include <chrono>
@@ -22,7 +23,7 @@ class SPI {
 public:
     SPI(int hostId) : host(static_cast<spi_host_device_t>(hostId)) {}
 
-    std::vector<uint8_t> transfer(std::vector<uint8_t> data, int cs, int rxLength = 0, bool qio = false) {
+    std::vector<uint8_t> transfer(std::span<uint8_t> data, int cs, int rxLength = 0, bool qio = false) {
         if (!open) {
             throw std::runtime_error("SPI not configured");
         }
@@ -36,10 +37,10 @@ public:
             .cmd = 0,
             .addr = 0,
             .length = data.size() * 8,
-            .rxlength = rx.size() * 8,
+            .rxlength = 0,
             .user = nullptr,
             .tx_buffer = data.data(),
-            .rx_buffer = rx.data()
+            .rx_buffer = nullptr // rx.data()
         };
 
         esp_err_t err = spi_device_transmit(deviceHandle, &transaction);
@@ -69,12 +70,12 @@ public:
             .data6_io_num = -1,
             .data7_io_num = -1,
             .max_transfer_sz = 0,
-            .flags = 0,
+            .flags = SPICOMMON_BUSFLAG_QUAD,
             .isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO,
             .intr_flags = 0,
         };
 
-        esp_err_t err = spi_bus_initialize(host, &busConfig, SPI_DMA_DISABLED);
+        esp_err_t err = spi_bus_initialize(host, &busConfig, SPI_DMA_CH_AUTO);
         if (err != ESP_OK) {
             throw std::runtime_error(esp_err_to_name(err));
         }
@@ -91,7 +92,7 @@ public:
             .clock_speed_hz = baud_,
             .input_delay_ns = 0,
             .spics_io_num = -1,
-            .flags = static_cast<uint32_t>(lsb_ ? (SPI_DEVICE_TXBIT_LSBFIRST | SPI_DEVICE_RXBIT_LSBFIRST) : 0),
+            .flags = static_cast<uint32_t>(lsb_ ? (SPI_DEVICE_TXBIT_LSBFIRST | SPI_DEVICE_RXBIT_LSBFIRST) : 0) | SPI_DEVICE_HALFDUPLEX,
             .queue_size = 1,
             .pre_cb = nullptr,
             .post_cb = nullptr,
@@ -129,7 +130,7 @@ struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI>, public jac::Prot
             auto& feature = *reinterpret_cast<SPIFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
             auto dataVec = feature.toStdVector(data);
-            auto rx = spi.transfer(std::move(dataVec), cs);
+            auto rx = spi.transfer(dataVec, cs);
             return feature.toUint8Array(rx);
         }));
         proto.defineProperty("write", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Value data, int cs) {
@@ -137,7 +138,7 @@ struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI>, public jac::Prot
             auto& feature = *reinterpret_cast<SPIFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
             auto dataVec = feature.toStdVector(data);
-            spi.transfer(std::move(dataVec), cs);
+            spi.transfer(dataVec, cs);
             std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
             jac::Logger::debug("transfer took " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()) + "ms");
         }));
@@ -145,8 +146,16 @@ struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI>, public jac::Prot
             auto& feature = *reinterpret_cast<SPIFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
             auto dataVec = feature.toStdVector(data);
-            auto rx = spi.transfer(std::move(dataVec), cs, rxLength, qio);
-            return feature.toUint8Array(rx);
+
+            size_t n = 0;
+            while (n != dataVec.size()) {
+                size_t pak_size = dataVec.size() - n > 4092 ? 4092 : dataVec.size() - n;
+                auto rx = spi.transfer(std::span(dataVec.begin() + n, dataVec.begin() + n + pak_size), cs, rxLength, qio);
+
+                n += pak_size;
+            }
+
+            return feature.toUint8Array(std::vector<uint8_t>());
         }));
         proto.defineProperty("setup", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object options) {
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
