@@ -1,7 +1,7 @@
 declare module "shapes" {
     import { Texture } from "renderer";
-    // R, G, B, A, 0-255
-    export type Color = [number, number, number, number] | "red" | "green" | "blue" | "yellow" | "magenta" | "cyan" | "white" | "black";
+    // Packed 24-bit RGB, e.g. 0xff0000 for red.
+    export type Color = number;
 
     export interface ShapeParams {
         x: number;
