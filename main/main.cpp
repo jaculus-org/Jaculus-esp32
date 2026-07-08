@@ -21,6 +21,7 @@
 #include "espFeatures/gpioFeature.h"
 #include "espFeatures/gridui/gridUiFeature.h"
 #include "espFeatures/i2cFeature.h"
+#include "espFeatures/oneWireFeature.h"
 #include "espFeatures/spiFeature.h"
 #include "espFeatures/ledcFeature.h"
 #include "espFeatures/motorFeature.h"
@@ -85,6 +86,7 @@ using Machine = jac::ComposeMachine<
     LedcFeature,
     AdcFeature,
     I2CFeature,
+    OneWireFeature,
     SPIFeature,
     SmartLedFeature,
     PulseCounterFeature,

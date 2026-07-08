@@ -8,4 +8,9 @@ declare module "wifi" {
     * List all saved WiFi networks.
     */
     function listNetworks(): string[];
+
+    /**
+    * Return the device MAC address in standard string form.
+    */
+    function address(): string;
 }
