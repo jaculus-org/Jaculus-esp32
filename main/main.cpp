@@ -28,6 +28,7 @@
 #include "espFeatures/pulseCounterFeature.h"
 #include "espFeatures/rendererFeature.h"
 #include "espFeatures/selectFeature.h"
+#include "espFeatures/serialFeature.h"
 #include "espFeatures/simpleRadioFeature.h"
 #include "espFeatures/smartLedFeature.h"
 #include "espFeatures/timestampFeature.h"
@@ -90,6 +91,7 @@ using Machine = jac::ComposeMachine<
     SPIFeature,
     SmartLedFeature,
     PulseCounterFeature,
+    SerialFeature,
     SimpleRadioFeature,
     MotorFeature,
     WifiFeature,

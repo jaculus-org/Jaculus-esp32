@@ -1,13 +1,10 @@
+import { bytesToStr } from "./bytes.js";
 import { UdpSocket } from "udp";
 import { currentIp } from "wifi";
 
 /**
  * Example UDP echo server.
  */
-
-function ascii2str(buf: ArrayBuffer): string {
-    return String.fromCharCode.apply(null, new Uint8Array(buf));
-}
 
 while (!currentIp()) {
     console.log("Waiting for network...");
@@ -26,7 +23,7 @@ const socket = new UdpSocket({
         console.log(`${count} datagrams available`);
         const msg = socket.read();
         if (msg) {
-            console.log(`Received: ${ascii2str(msg)} from ${msg.address}:${msg.port}`);
+            console.log(`Received: ${bytesToStr(msg)} from ${msg.address}:${msg.port}`);
             socket.write(msg, msg.address, PORT);
         }
     }
