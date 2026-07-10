@@ -15,7 +15,7 @@ export async function solarSystemExample() {
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
 
-    const sunCollection = new Collection({ x: 0, y: 0, color: 0x000000, z: 0 });
+    const sunCollection = new Collection({ x: 0, y: 0, z: 0 });
     sunCollection.setPivot(32, 32);
 
     const sun = new Circle({
@@ -26,7 +26,7 @@ export async function solarSystemExample() {
     });
     sunCollection.add(sun);
 
-    const earthCollection = new Collection({ x: 0, y: 0, color: 0x000000, z: 5 });
+    const earthCollection = new Collection({ x: 0, y: 0, z: 5 });
     earthCollection.setPivot(32, 32);
 
     const earth = new Circle({
@@ -47,7 +47,7 @@ export async function solarSystemExample() {
     });
     earthCollection.add(alien);
 
-    const moonCollection = new Collection({ x: 0, y: 0, color: 0x000000, z: 10 });
+    const moonCollection = new Collection({ x: 0, y: 0, z: 10 });
     moonCollection.setPivot(52, 32);
 
     const moon = new Circle({
@@ -137,7 +137,7 @@ export async function textExample() {
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
 
-    const scene = new Collection({ x: 0, y: 0, color: 0x000000, z: 10 });
+    const scene = new Collection({ x: 0, y: 0, z: 10 });
     const rect = new Rectangle({ x: 0, y: 0, width: 21, height: 8, color: 0x222222, fill: true });
     scene.add(rect);
 
@@ -169,7 +169,7 @@ export async function textureExample() {
         console.log("Failed to load texture BMP");
     }
 
-    const scene = new Collection({ x: 0, y: 0, color: 0x000000, z: 0 });
+    const scene = new Collection({ x: 0, y: 0, z: 0 });
     const rect = new Rectangle({ x: 30, y: 30, width: 30, height: 25, color: 0xFFFFFF, fill: true });
     rect.setTexture(texture);
     rect.setTextureScale(2, 2);
@@ -191,7 +191,7 @@ export async function removeExample() {
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
 
-    const scene = new Collection({ x: 0, y: 0, color: 0x000000, z: 0 });
+    const scene = new Collection({ x: 0, y: 0, z: 0 });
 
     const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
     const circles = colors.map((color, i) => new Circle({

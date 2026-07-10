@@ -6,7 +6,6 @@ declare module "shapes" {
     export interface ShapeParams {
         x: number;
         y: number;
-        color: Color;
         z?: number;
     }
 
@@ -46,12 +45,6 @@ declare module "shapes" {
          * @param originY Optional y coordinate of the scale origin.
          */
         setScale(scaleX: number, scaleY: number, originX?: number, originY?: number): void;
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
-        setColor(color: Color): void;
 
         /**
          * Set the z order used during rendering.
@@ -170,12 +163,6 @@ declare module "shapes" {
         getZ(): number;
 
         /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
-        getColor(): Color;
-
-        /**
          * Get the current rotation angle.
          * @returns The current angle in degrees.
          */
@@ -234,15 +221,29 @@ declare module "shapes" {
     }
 
     export interface CircleParams extends ShapeParams {
+        color: Color;
         radius: number;
         fill?: boolean;
     }
 
     export class Circle extends Shape {
         constructor(params: CircleParams);
+
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
+
+        /**
+         * Get the current shape color.
+         * @returns The current color.
+         */
+        getColor(): Color;
     }
 
     export interface RectangleParams extends ShapeParams {
+        color: Color;
         width: number;
         height: number;
         fill?: boolean;
@@ -250,37 +251,93 @@ declare module "shapes" {
 
     export class Rectangle extends Shape {
         constructor(params: RectangleParams);
+
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
+
+        /**
+         * Get the current shape color.
+         * @returns The current color.
+         */
+        getColor(): Color;
     }
 
     export interface PolygonParams extends ShapeParams {
+        color: Color;
         vertices: [number, number][];
         fill?: boolean;
     }
 
     export class Polygon extends Shape {
         constructor(params: PolygonParams);
+
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
+
+        /**
+         * Get the current shape color.
+         * @returns The current color.
+         */
+        getColor(): Color;
     }
 
     export interface LineSegmentParams extends ShapeParams {
+        color: Color;
         x2: number;
         y2: number;
     }
 
     export class LineSegment extends Shape {
         constructor(params: LineSegmentParams);
+
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
+
+        /**
+         * Get the current shape color.
+         * @returns The current color.
+         */
+        getColor(): Color;
+    }
+
+    export interface PointParams extends ShapeParams {
+        color: Color;
     }
 
     export class Point extends Shape {
-        constructor(params: ShapeParams);
+        constructor(params: PointParams);
+
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
+
+        /**
+         * Get the current shape color.
+         * @returns The current color.
+         */
+        getColor(): Color;
     }
 
     export interface RegularPolygonRadiusParams extends ShapeParams {
+        color: Color;
         sides: number;
         radius: number;
         fill?: boolean;
     }
 
     export interface RegularPolygonSideParams extends ShapeParams {
+        color: Color;
         sides: number;
         sideLength: number;
         fill?: boolean;
@@ -288,6 +345,18 @@ declare module "shapes" {
 
     export class RegularPolygon extends Shape {
         constructor(params: RegularPolygonRadiusParams | RegularPolygonSideParams);
+
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
+
+        /**
+         * Get the current shape color.
+         * @returns The current color.
+         */
+        getColor(): Color;
     }
 }
 

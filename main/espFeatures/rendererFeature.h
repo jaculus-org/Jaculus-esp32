@@ -268,7 +268,15 @@ template <>
 struct jac::ConvTraits<ShapeParams> {
     static ShapeParams from(ContextRef ctx, ValueWeak val) {
         auto obj = val.to<jac::ObjectWeak>();
-        return ShapeParams(obj.get<float>("x"), obj.get<float>("y"), obj.get<Color>("color"), obj.hasProperty("z") ? obj.get<float>("z") : 0);
+        return ShapeParams(obj.get<float>("x"), obj.get<float>("y"), obj.hasProperty("z") ? obj.get<float>("z") : 0);
+    }
+};
+
+template <>
+struct jac::ConvTraits<PointParams> {
+    static PointParams from(ContextRef ctx, ValueWeak val) {
+        auto obj = val.to<jac::ObjectWeak>();
+        return PointParams(obj.get<float>("x"), obj.get<float>("y"), obj.get<Color>("color"), obj.hasProperty("z") ? obj.get<float>("z") : 0);
     }
 };
 
@@ -437,11 +445,6 @@ private:
             float oy = originY.isUndefined() ? -1 : originY.to<float>();
             shape->setScale(scaleX, scaleY, ox, oy);
         }), jac::PropFlags::Enumerable);
-
-        proto.defineProperty("setColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak colorVal) {
-            Color color = jac::fromValue<Color>(ctx, colorVal);
-            unwrapShape(ctx, thisVal)->color = color;
-        }), jac::PropFlags::Enumerable);
     }
 
     static void addTextureSetters(jac::ContextRef ctx, jac::Object proto, jac::FunctionFactory& ff) {
@@ -484,7 +487,6 @@ private:
             {"getRotationAngle", [](jac::ContextRef ctx, Shape* s) { return jac::Value::from(ctx, s->rotationAngle()); }},
             {"getScaleX", [](jac::ContextRef ctx, Shape* s) { return jac::Value::from(ctx, s->scaleX()); }},
             {"getScaleY", [](jac::ContextRef ctx, Shape* s) { return jac::Value::from(ctx, s->scaleY()); }},
-            {"getColor", [](jac::ContextRef ctx, Shape* s) { return jac::toValue(ctx, s->color); }},
         });
     }
 
@@ -555,6 +557,14 @@ public:
         } \
         static void addProperties(jac::ContextRef ctx, jac::Object proto) { \
             ShapeProtoBuilder::addProperties(ctx, proto); \
+            jac::FunctionFactory ff(ctx); \
+            proto.defineProperty("setColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak colorVal) { \
+                Color color = jac::fromValue<Color>(ctx, colorVal); \
+                static_cast<ClassName*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->color = color; \
+            }), jac::PropFlags::Enumerable); \
+            proto.defineProperty("getColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) { \
+                return jac::toValue(ctx, static_cast<ClassName*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->color); \
+            }), jac::PropFlags::Enumerable); \
         } \
     };
 
@@ -562,7 +572,7 @@ SHAPE_BUILDER_BOILERPLATE(Circle, CircleParams)
 SHAPE_BUILDER_BOILERPLATE(Rectangle, RectangleParams)
 SHAPE_BUILDER_BOILERPLATE(Polygon, PolygonParams)
 SHAPE_BUILDER_BOILERPLATE(LineSegment, LineSegmentParams)
-SHAPE_BUILDER_BOILERPLATE(Point, ShapeParams)
+SHAPE_BUILDER_BOILERPLATE(Point, PointParams)
 
 class CollectionProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<Collection>>, public jac::ProtoBuilder::Properties {
 public:
@@ -622,6 +632,16 @@ public:
 
     static void addProperties(jac::ContextRef ctx, jac::Object proto) {
         ShapeProtoBuilder::addProperties(ctx, proto);
+        jac::FunctionFactory ff(ctx);
+
+        proto.defineProperty("setColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak colorVal) {
+            Color color = jac::fromValue<Color>(ctx, colorVal);
+            static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->color = color;
+        }), jac::PropFlags::Enumerable);
+
+        proto.defineProperty("getColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+            return jac::toValue(ctx, static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->color);
+        }), jac::PropFlags::Enumerable);
     }
 };
 
