@@ -225,6 +225,12 @@ declare module "shapes" {
          * Remove all child shapes from the collection.
          */
         clear(): void;
+
+        /**
+         * Remove a child shape from the collection.
+         * @param shape The shape to remove.
+         */
+        remove(shape: Shape): void;
     }
 
     export interface CircleParams extends ShapeParams {
@@ -370,7 +376,7 @@ declare module "renderer" {
          * @param color The text color.
          * @param wrap Whether to wrap lines to the renderer width.
          * @param format The output pixel format.
-         * @param rotation Rotates the whole image by 90 degree increments.
+         * @param rotation Rotates the whole image by 90 degree increments, referenced to the panel's global origin - the same convention as render()'s rotation. Applied independently of any render() or other drawText() call: it only affects the pixels this call draws.
          * @returns The number of bytes written.
          */
         drawText(buffer: ArrayBuffer, text: string, x: number, y: number, font: Font, color: Color, wrap: boolean, format?: Format, rotation?: number): number;

@@ -172,6 +172,78 @@ size_t writeDenseFramebuffer(uint8_t* raw, size_t maxBytes, int width, int heigh
     return frameBytes;
 }
 
+void writePixelBytes(uint8_t* out, int format, Color p) {
+    switch (format) {
+    case 3:
+        out[0] = (p.r + p.g + p.b) > 381 ? 1 : 0;
+        break;
+    case 4:
+        out[0] = ((p.r * 77 + p.g * 150 + p.b * 29) >> 12) & 0x0F;
+        break;
+    case 5:
+        out[0] = (p.r * 77 + p.g * 150 + p.b * 29) >> 8;
+        break;
+    case 6:
+        out[0] = (p.r & 0xE0) | ((p.g >> 3) & 0x1C) | (p.b >> 6);
+        break;
+    case 7: {
+        uint16_t rgb = ((p.r & 0xF8) << 8) | ((p.g & 0xFC) << 3) | (p.b >> 3);
+        out[0] = rgb & 0xFF;
+        out[1] = rgb >> 8;
+        break;
+    }
+    case 8: {
+        uint16_t rgb = ((p.r & 0xF8) << 8) | ((p.g & 0xFC) << 3) | (p.b >> 3);
+        out[0] = rgb >> 8;
+        out[1] = rgb & 0xFF;
+        break;
+    }
+    case 9:
+        out[0] = p.r;
+        out[1] = p.g;
+        out[2] = p.b;
+        break;
+    case 10:
+        out[0] = p.r;
+        out[1] = p.g;
+        out[2] = p.b;
+        out[3] = p.a;
+        break;
+    case 12:
+        out[0] = (p.g & 0xF0) | (p.b >> 4);
+        out[1] = (p.a & 0xF0) | (p.r >> 4);
+        break;
+    }
+}
+
+void writeTextPixel(uint8_t* raw, size_t maxBytes, int width, int height, int format, int rotation, int lx, int ly, Color color) {
+    size_t bytesPerPixel = packedColorSize(format);
+    if (bytesPerPixel == 0)
+        return;
+
+    int r = ((rotation % 4) + 4) % 4;
+    int px = lx, py = ly;
+    if (r == 1) { // 90 degrees
+        px = width - 1 - ly;
+        py = lx;
+    } else if (r == 2) { // 180 degrees
+        px = width - 1 - lx;
+        py = height - 1 - ly;
+    } else if (r == 3) { // 270 degrees
+        px = ly;
+        py = height - 1 - lx;
+    }
+
+    if (static_cast<unsigned>(px) >= static_cast<unsigned>(width) || static_cast<unsigned>(py) >= static_cast<unsigned>(height))
+        return;
+
+    size_t offset = (static_cast<size_t>(py) * width + px) * bytesPerPixel;
+    if (offset + bytesPerPixel > maxBytes)
+        return;
+
+    writePixelBytes(raw + offset, format, color);
+}
+
 // ===================================
 //      Type Conversions (ConvTraits)
 // ===================================
@@ -520,6 +592,18 @@ public:
             (*collectionPtr)->clear();
             return jac::Value::undefined(ctx);
         }), jac::PropFlags::Enumerable);
+
+        proto.defineProperty("remove", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object shapeVal) {
+            auto collectionPtr = getOpaque(ctx, thisVal);
+            void* shapeOpaque = JS_GetOpaque(shapeVal.getVal(), JS_GetClassID(shapeVal.getVal()));
+
+            if (shapeOpaque) {
+                auto shapePtr = reinterpret_cast<std::shared_ptr<Shape>*>(shapeOpaque);
+                if (shapePtr && *shapePtr) {
+                    (*collectionPtr)->removeShape(*shapePtr);
+                }
+            }
+        }), jac::PropFlags::Enumerable);
     }
 };
 
@@ -681,16 +765,19 @@ public:
             int format = (args.size() >= 8) ? args[7].to<int>() : 10;
             int rotation = (args.size() >= 9) ? args[8].to<int>() : 0;
 
-            holder->getRenderer()->drawText(text, x, y, font, color, wrap);
+            int w = holder->getWidth();
+            int h = holder->getHeight();
 
-            const Display& displayGrid = holder->getRenderer()->displayGrid;
-
-            size_t frameBytes = writeDenseFramebuffer(raw, maxBytes, holder->getWidth(), holder->getHeight(), format, false, displayGrid, rotation);
-
-            if (frameBytes == 0) {
+            size_t bytesPerPixel = packedColorSize(format);
+            size_t frameBytes = static_cast<size_t>(w) * static_cast<size_t>(h) * bytesPerPixel;
+            if (bytesPerPixel == 0 || frameBytes > maxBytes) {
                 jac::Logger::error("Renderer.drawText: ArrayBuffer too small or invalid format");
                 return jac::Value::undefined(ctx);
             }
+
+            holder->getRenderer()->drawText(text, x, y, font, color, wrap, 0, [&](int px, int py, const Color& c) {
+                writeTextPixel(raw, maxBytes, w, h, format, rotation, px, py, c);
+            });
 
             return jac::Value(ctx, static_cast<int>(frameBytes));
         }), jac::PropFlags::Enumerable);
