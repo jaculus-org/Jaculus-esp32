@@ -1,7 +1,7 @@
 # get version
 version=$(git describe)
 
-help_text="Usage: $0 <id> <sdkconfig> <sdkconfig> <bootloader_offset>"
+help_text="Usage: $0 <board> <sdkconfig> <chip> <bootloader_offset>"
 
 # setup environment
 board=$1
@@ -40,6 +40,19 @@ rm -f sdkconfig
 rm -f sdkconfig.defaults
 ln -s $sdkconfig sdkconfig.defaults
 
+# determine partition table offsets from the selected partition table
+partition_csv=$(grep 'CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=' sdkconfig.defaults | sed 's/CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="\(.*\)"/\1/')
+if [ -z "$partition_csv" ] || [ ! -f "$partition_csv" ]; then
+    echo "Error: could not determine partition table CSV from $sdkconfig"
+    exit 1
+fi
+factory_offset=$(grep '^factory,' "$partition_csv" | awk -F, '{print $4}')
+storage_offset=$(grep '^storage,' "$partition_csv" | awk -F, '{print $4}')
+if [ -z "$factory_offset" ] || [ -z "$storage_offset" ]; then
+    echo "Error: could not extract factory/storage offsets from $partition_csv"
+    exit 1
+fi
+
 # clean build
 idf.py fullclean build || exit 1
 
@@ -75,12 +88,12 @@ echo "                \"file\": \"partition-table.bin\"" >> $manifest
 echo "            }," >> $manifest
 echo "            {" >> $manifest
 echo "                \"name\": \"factory\"," >> $manifest
-echo "                \"address\": \"0xC0000\"," >> $manifest
+echo "                \"address\": \"$factory_offset\"," >> $manifest
 echo "                \"file\": \"factory.bin\"" >> $manifest
 echo "            }," >> $manifest
 echo "            {" >> $manifest
 echo "                \"name\": \"storage\"," >> $manifest
-echo "                \"address\": \"0x2D000\"," >> $manifest
+echo "                \"address\": \"$storage_offset\"," >> $manifest
 echo "                \"file\": \"storage.bin\"," >> $manifest
 echo "                \"isStorage\": true" >> $manifest
 echo "            }" >> $manifest
