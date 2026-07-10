@@ -553,7 +553,9 @@ public:
     class ClassName##ProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<Shape>>, public jac::ProtoBuilder::Properties { \
     public: \
         static std::shared_ptr<Shape>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) { \
-            return new std::shared_ptr<Shape>(new ClassName(jac::fromValue<ParamsType>(ctx, args[0]))); \
+            auto shape = new ClassName(jac::fromValue<ParamsType>(ctx, args[0])); \
+            shape->addCollider(nullptr); \
+            return new std::shared_ptr<Shape>(shape); \
         } \
         static void addProperties(jac::ContextRef ctx, jac::Object proto) { \
             ShapeProtoBuilder::addProperties(ctx, proto); \
@@ -578,6 +580,7 @@ class CollectionProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<
 public:
     static std::shared_ptr<Collection>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
         auto rawPtr = new Collection(jac::fromValue<ShapeParams>(ctx, args[0]));
+        rawPtr->addCollider(nullptr);
         return new std::shared_ptr<Collection>(rawPtr);
     }
 
@@ -627,6 +630,7 @@ public:
         } else {
             rawShape = new RegularPolygon(jac::fromValue<RegularPolygonSideParams>(ctx, args[0]));
         }
+        rawShape->addCollider(nullptr);
         return new std::shared_ptr<Shape>(rawShape);
     }
 
