@@ -6,7 +6,6 @@ declare module "shapes" {
     export interface ShapeParams {
         x: number;
         y: number;
-        color: Color;
         z?: number;
     }
 
@@ -46,12 +45,6 @@ declare module "shapes" {
          * @param originY Optional y coordinate of the scale origin.
          */
         setScale(scaleX: number, scaleY: number, originX?: number, originY?: number): void;
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
-        setColor(color: Color): void;
 
         /**
          * Set the z order used during rendering.
@@ -170,12 +163,6 @@ declare module "shapes" {
         getZ(): number;
 
         /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
-        getColor(): Color;
-
-        /**
          * Get the current rotation angle.
          * @returns The current angle in degrees.
          */
@@ -199,17 +186,20 @@ declare module "shapes" {
          * @returns True if the shapes intersect, false otherwise.
          */
         intersects(other: Shape): boolean;
+    }
+
+    export interface Colorable {
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
 
         /**
-         * Attach the shape's default collider. Custom colliders are not
-         * supported from JS; any argument passed is ignored.
+         * Get the current shape color.
+         * @returns The current color.
          */
-        addCollider(): void;
-
-        /**
-         * Remove the collider from the shape.
-         */
-        removeCollider(): void;
+        getColor(): Color;
     }
 
     export class Collection extends Shape {
@@ -225,63 +215,91 @@ declare module "shapes" {
          * Remove all child shapes from the collection.
          */
         clear(): void;
+
+        /**
+         * Remove a child shape from the collection.
+         * @param shape The shape to remove.
+         */
+        remove(shape: Shape): void;
     }
 
     export interface CircleParams extends ShapeParams {
+        color: Color;
         radius: number;
         fill?: boolean;
     }
 
-    export class Circle extends Shape {
+    export class Circle extends Shape implements Colorable {
         constructor(params: CircleParams);
+        setColor(color: Color): void;
+        getColor(): Color;
     }
 
     export interface RectangleParams extends ShapeParams {
+        color: Color;
         width: number;
         height: number;
         fill?: boolean;
     }
 
-    export class Rectangle extends Shape {
+    export class Rectangle extends Shape implements Colorable {
         constructor(params: RectangleParams);
+        setColor(color: Color): void;
+        getColor(): Color;
     }
 
     export interface PolygonParams extends ShapeParams {
+        color: Color;
         vertices: [number, number][];
         fill?: boolean;
     }
 
-    export class Polygon extends Shape {
+    export class Polygon extends Shape implements Colorable {
         constructor(params: PolygonParams);
+        setColor(color: Color): void;
+        getColor(): Color;
     }
 
     export interface LineSegmentParams extends ShapeParams {
+        color: Color;
         x2: number;
         y2: number;
     }
 
-    export class LineSegment extends Shape {
+    export class LineSegment extends Shape implements Colorable {
         constructor(params: LineSegmentParams);
+        setColor(color: Color): void;
+        getColor(): Color;
     }
 
-    export class Point extends Shape {
-        constructor(params: ShapeParams);
+    export interface PointParams extends ShapeParams {
+        color: Color;
+    }
+
+    export class Point extends Shape implements Colorable {
+        constructor(params: PointParams);
+        setColor(color: Color): void;
+        getColor(): Color;
     }
 
     export interface RegularPolygonRadiusParams extends ShapeParams {
+        color: Color;
         sides: number;
         radius: number;
         fill?: boolean;
     }
 
     export interface RegularPolygonSideParams extends ShapeParams {
+        color: Color;
         sides: number;
         sideLength: number;
         fill?: boolean;
     }
 
-    export class RegularPolygon extends Shape {
+    export class RegularPolygon extends Shape implements Colorable {
         constructor(params: RegularPolygonRadiusParams | RegularPolygonSideParams);
+        setColor(color: Color): void;
+        getColor(): Color;
     }
 }
 
@@ -370,7 +388,7 @@ declare module "renderer" {
          * @param color The text color.
          * @param wrap Whether to wrap lines to the renderer width.
          * @param format The output pixel format.
-         * @param rotation Rotates the whole image by 90 degree increments.
+         * @param rotation Rotates the whole image by 90 degree increments, referenced to the panel's global origin - the same convention as render()'s rotation. Applied independently of any render() or other drawText() call: it only affects the pixels this call draws.
          * @returns The number of bytes written.
          */
         drawText(buffer: ArrayBuffer, text: string, x: number, y: number, font: Font, color: Color, wrap: boolean, format?: Format, rotation?: number): number;
