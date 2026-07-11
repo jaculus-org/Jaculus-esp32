@@ -186,17 +186,20 @@ declare module "shapes" {
          * @returns True if the shapes intersect, false otherwise.
          */
         intersects(other: Shape): boolean;
+    }
+
+    export interface Colorable {
+        /**
+         * Set the color used for rendering the shape.
+         * @param color The new shape color.
+         */
+        setColor(color: Color): void;
 
         /**
-         * Attach the shape's default collider. Custom colliders are not
-         * supported from JS; any argument passed is ignored.
+         * Get the current shape color.
+         * @returns The current color.
          */
-        addCollider(): void;
-
-        /**
-         * Remove the collider from the shape.
-         */
-        removeCollider(): void;
+        getColor(): Color;
     }
 
     export class Collection extends Shape {
@@ -226,19 +229,9 @@ declare module "shapes" {
         fill?: boolean;
     }
 
-    export class Circle extends Shape {
+    export class Circle extends Shape implements Colorable {
         constructor(params: CircleParams);
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
         setColor(color: Color): void;
-
-        /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
         getColor(): Color;
     }
 
@@ -249,19 +242,9 @@ declare module "shapes" {
         fill?: boolean;
     }
 
-    export class Rectangle extends Shape {
+    export class Rectangle extends Shape implements Colorable {
         constructor(params: RectangleParams);
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
         setColor(color: Color): void;
-
-        /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
         getColor(): Color;
     }
 
@@ -271,19 +254,9 @@ declare module "shapes" {
         fill?: boolean;
     }
 
-    export class Polygon extends Shape {
+    export class Polygon extends Shape implements Colorable {
         constructor(params: PolygonParams);
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
         setColor(color: Color): void;
-
-        /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
         getColor(): Color;
     }
 
@@ -293,19 +266,9 @@ declare module "shapes" {
         y2: number;
     }
 
-    export class LineSegment extends Shape {
+    export class LineSegment extends Shape implements Colorable {
         constructor(params: LineSegmentParams);
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
         setColor(color: Color): void;
-
-        /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
         getColor(): Color;
     }
 
@@ -313,19 +276,9 @@ declare module "shapes" {
         color: Color;
     }
 
-    export class Point extends Shape {
+    export class Point extends Shape implements Colorable {
         constructor(params: PointParams);
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
         setColor(color: Color): void;
-
-        /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
         getColor(): Color;
     }
 
@@ -343,19 +296,9 @@ declare module "shapes" {
         fill?: boolean;
     }
 
-    export class RegularPolygon extends Shape {
+    export class RegularPolygon extends Shape implements Colorable {
         constructor(params: RegularPolygonRadiusParams | RegularPolygonSideParams);
-
-        /**
-         * Set the color used for rendering the shape.
-         * @param color The new shape color.
-         */
         setColor(color: Color): void;
-
-        /**
-         * Get the current shape color.
-         * @returns The current color.
-         */
         getColor(): Color;
     }
 }

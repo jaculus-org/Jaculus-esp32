@@ -505,16 +505,6 @@ private:
             }
             return jac::Value::from(ctx, false);
         }), jac::PropFlags::Enumerable);
-
-        proto.defineProperty("addCollider", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
-            Shape* shape = unwrapShape(ctx, thisVal);
-            shape->addCollider(nullptr);
-        }), jac::PropFlags::Enumerable);
-
-        proto.defineProperty("removeCollider", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
-            Shape* shape = unwrapShape(ctx, thisVal);
-            shape->removeCollider();
-        }), jac::PropFlags::Enumerable);
     }
 
 public:
