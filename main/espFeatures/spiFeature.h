@@ -17,7 +17,8 @@
 
 class SPI {
     spi_host_device_t host;
-    spi_device_handle_t deviceHandle;
+    spi_device_handle_t fullDuplexDeviceHandle = nullptr;
+    spi_device_handle_t halfDuplexDeviceHandle = nullptr;
     bool open = false;
 
 public:
@@ -30,19 +31,21 @@ public:
         gpio_set_direction(static_cast<gpio_num_t>(cs), GPIO_MODE_OUTPUT);
         gpio_set_level(static_cast<gpio_num_t>(cs), 0);
 
-        std::vector<uint8_t> rx(rxLength > 0 ? rxLength : data.size());
+        bool receive = !qio || rxLength > 0;
+        std::vector<uint8_t> rx(receive ? (rxLength > 0 ? rxLength : data.size()) : 0);
 
         spi_transaction_t transaction = {
             .flags = static_cast<uint32_t>(qio ? SPI_TRANS_MODE_QIO : 0),
             .cmd = 0,
             .addr = 0,
             .length = data.size() * 8,
-            .rxlength = 0,
+            .rxlength = static_cast<size_t>(rxLength) * 8,
             .user = nullptr,
             .tx_buffer = data.data(),
-            .rx_buffer = nullptr // rx.data()
+            .rx_buffer = receive ? rx.data() : nullptr,
         };
 
+        auto deviceHandle = qio ? halfDuplexDeviceHandle : fullDuplexDeviceHandle;
         esp_err_t err = spi_device_transmit(deviceHandle, &transaction);
         if (err != ESP_OK) {
             throw std::runtime_error(esp_err_to_name(err));
@@ -70,7 +73,7 @@ public:
             .data6_io_num = -1,
             .data7_io_num = -1,
             .max_transfer_sz = 0,
-            .flags = SPICOMMON_BUSFLAG_QUAD,
+            .flags = static_cast<uint32_t>(dataPins[2] >= 0 && dataPins[3] >= 0 ? SPICOMMON_BUSFLAG_QUAD : 0),
             .isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO,
             .intr_flags = 0,
         };
@@ -92,14 +95,22 @@ public:
             .clock_speed_hz = baud_,
             .input_delay_ns = 0,
             .spics_io_num = -1,
-            .flags = static_cast<uint32_t>(lsb_ ? (SPI_DEVICE_TXBIT_LSBFIRST | SPI_DEVICE_RXBIT_LSBFIRST) : 0) | SPI_DEVICE_HALFDUPLEX,
+            .flags = static_cast<uint32_t>(lsb_ ? (SPI_DEVICE_TXBIT_LSBFIRST | SPI_DEVICE_RXBIT_LSBFIRST) : 0),
             .queue_size = 1,
             .pre_cb = nullptr,
             .post_cb = nullptr,
         };
 
-        err = spi_bus_add_device(host, &deviceConfigTemplate, &deviceHandle);
+        err = spi_bus_add_device(host, &deviceConfigTemplate, &fullDuplexDeviceHandle);
         if (err != ESP_OK) {
+            spi_bus_free(host);
+            throw std::runtime_error(esp_err_to_name(err));
+        }
+
+        deviceConfigTemplate.flags |= SPI_DEVICE_HALFDUPLEX;
+        err = spi_bus_add_device(host, &deviceConfigTemplate, &halfDuplexDeviceHandle);
+        if (err != ESP_OK) {
+            spi_bus_remove_device(fullDuplexDeviceHandle);
             spi_bus_free(host);
             throw std::runtime_error(esp_err_to_name(err));
         }
@@ -109,7 +120,8 @@ public:
 
     void close() {
         if (open) {
-            spi_bus_remove_device(deviceHandle);
+            spi_bus_remove_device(halfDuplexDeviceHandle);
+            spi_bus_remove_device(fullDuplexDeviceHandle);
             spi_bus_free(host);
             open = false;
         }
@@ -148,14 +160,16 @@ struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI>, public jac::Prot
             auto dataVec = feature.toStdVector(data);
 
             size_t n = 0;
+            std::vector<uint8_t> result;
             while (n != dataVec.size()) {
                 size_t pak_size = dataVec.size() - n > 4092 ? 4092 : dataVec.size() - n;
                 auto rx = spi.transfer(std::span(dataVec.begin() + n, dataVec.begin() + n + pak_size), cs, rxLength, qio);
+                result.insert(result.end(), rx.begin(), rx.end());
 
                 n += pak_size;
             }
 
-            return feature.toUint8Array(std::vector<uint8_t>());
+            return feature.toUint8Array(result);
         }));
         proto.defineProperty("setup", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object options) {
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
@@ -215,7 +229,7 @@ public:
         Next::initialize();
 
         jac::Module& mod = this->newModule("spi");
-        for (int i = 0; i < SPI_HOST_MAX; ++i) {
+        for (int i = SPI2_HOST; i < SPI_HOST_MAX; ++i) {
             mod.addExport("SPI" + std::to_string(i + 1), SPIClass::createInstance(this->context(), new SPI(i)));
         }
     }

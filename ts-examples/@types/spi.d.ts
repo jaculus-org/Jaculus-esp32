@@ -45,7 +45,6 @@ declare module "spi" {
         }): void;
     }
 
-    const SPI1: SPI;
     const SPI2: SPI;
     const SPI3: SPI | undefined;
 }
