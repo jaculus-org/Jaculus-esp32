@@ -267,26 +267,29 @@ struct jac::ConvTraits<Color> {
 template <>
 struct jac::ConvTraits<Matrix2D> {
     static Matrix2D from(ContextRef ctx, ValueWeak val) {
-        auto obj = val.to<jac::ObjectWeak>();
+        auto arr = val.to<jac::ArrayWeak>();
+        if (arr.length() < 6) {
+            throw jac::Exception::create(jac::Exception::Type::TypeError, "Expected an array of 6 numbers [a, b, c, d, e, f]");
+        }
         Matrix2D m;
-        m.a = obj.get<float>("a");
-        m.b = obj.get<float>("b");
-        m.c = obj.get<float>("c");
-        m.d = obj.get<float>("d");
-        m.e = obj.get<float>("e");
-        m.f = obj.get<float>("f");
+        m.a = arr.get(0).to<float>();
+        m.b = arr.get(1).to<float>();
+        m.c = arr.get(2).to<float>();
+        m.d = arr.get(3).to<float>();
+        m.e = arr.get(4).to<float>();
+        m.f = arr.get(5).to<float>();
         return m;
     }
 
     static jac::Value to(ContextRef ctx, Matrix2D val) {
-        jac::Object obj = jac::Object::create(ctx);
-        obj.set("a", val.a);
-        obj.set("b", val.b);
-        obj.set("c", val.c);
-        obj.set("d", val.d);
-        obj.set("e", val.e);
-        obj.set("f", val.f);
-        return obj;
+        jac::Array arr = jac::Array::create(ctx);
+        arr.set(0u, val.a);
+        arr.set(1u, val.b);
+        arr.set(2u, val.c);
+        arr.set(3u, val.d);
+        arr.set(4u, val.e);
+        arr.set(5u, val.f);
+        return arr;
     }
 };
 
@@ -478,13 +481,13 @@ private:
             return jac::Value::undefined(ctx);
         }), jac::PropFlags::Enumerable);
 
-        proto.defineProperty("setTransformationMatrix", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak matrixVal) {
+        proto.defineProperty("setTransformation", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak matrixVal) {
             Shape* shape = unwrapShape(ctx, thisVal);
             Matrix2D matrix = jac::fromValue<Matrix2D>(ctx, matrixVal);
             shape->setTransformationMatrix(matrix);
         }), jac::PropFlags::Enumerable);
 
-        proto.defineProperty("clearTransformationMatrix", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        proto.defineProperty("clearTransformation", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
             Shape* shape = unwrapShape(ctx, thisVal);
             shape->clearTransformationMatrix();
         }), jac::PropFlags::Enumerable);
