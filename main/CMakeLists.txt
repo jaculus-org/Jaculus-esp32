@@ -1,4 +1,4 @@
-set(JAC_ESP32_VERSION "0.2.2")
+set(JAC_ESP32_VERSION "0.2.3")
 
 idf_component_register(
     SRCS "main.cpp"
