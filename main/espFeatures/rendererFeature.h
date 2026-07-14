@@ -265,6 +265,35 @@ struct jac::ConvTraits<Color> {
 };
 
 template <>
+struct jac::ConvTraits<Matrix2D> {
+    static Matrix2D from(ContextRef ctx, ValueWeak val) {
+        auto arr = val.to<jac::ArrayWeak>();
+        if (arr.length() < 6) {
+            throw jac::Exception::create(jac::Exception::Type::TypeError, "Expected an array of 6 numbers [a, b, c, d, e, f]");
+        }
+        Matrix2D m;
+        m.a = arr.get(0).to<float>();
+        m.b = arr.get(1).to<float>();
+        m.c = arr.get(2).to<float>();
+        m.d = arr.get(3).to<float>();
+        m.e = arr.get(4).to<float>();
+        m.f = arr.get(5).to<float>();
+        return m;
+    }
+
+    static jac::Value to(ContextRef ctx, Matrix2D val) {
+        jac::Array arr = jac::Array::create(ctx);
+        arr.set(0u, val.a);
+        arr.set(1u, val.b);
+        arr.set(2u, val.c);
+        arr.set(3u, val.d);
+        arr.set(4u, val.e);
+        arr.set(5u, val.f);
+        return arr;
+    }
+};
+
+template <>
 struct jac::ConvTraits<ShapeParams> {
     static ShapeParams from(ContextRef ctx, ValueWeak val) {
         auto obj = val.to<jac::ObjectWeak>();
@@ -439,11 +468,28 @@ private:
             {"translate", [](Shape* s, float x, float y) { s->translate(x, y); }},
         });
 
-        proto.defineProperty("setScale", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, float scaleX, float scaleY, jac::ValueWeak originX, jac::ValueWeak originY) {
+        proto.defineProperty("setScale", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) {
+            if (args.size() < 2) {
+                throw jac::Exception::create(jac::Exception::Type::TypeError, "setScale: expected at least (scaleX, scaleY)");
+            }
             Shape* shape = unwrapShape(ctx, thisVal);
-            float ox = originX.isUndefined() ? -1 : originX.to<float>();
-            float oy = originY.isUndefined() ? -1 : originY.to<float>();
+            float scaleX = args[0].to<float>();
+            float scaleY = args[1].to<float>();
+            float ox = (args.size() > 2 && !args[2].isUndefined()) ? args[2].to<float>() : -1;
+            float oy = (args.size() > 3 && !args[3].isUndefined()) ? args[3].to<float>() : -1;
             shape->setScale(scaleX, scaleY, ox, oy);
+            return jac::Value::undefined(ctx);
+        }), jac::PropFlags::Enumerable);
+
+        proto.defineProperty("setTransformation", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak matrixVal) {
+            Shape* shape = unwrapShape(ctx, thisVal);
+            Matrix2D matrix = jac::fromValue<Matrix2D>(ctx, matrixVal);
+            shape->setTransformationMatrix(matrix);
+        }), jac::PropFlags::Enumerable);
+
+        proto.defineProperty("clearTransformation", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+            Shape* shape = unwrapShape(ctx, thisVal);
+            shape->clearTransformationMatrix();
         }), jac::PropFlags::Enumerable);
     }
 
@@ -539,7 +585,7 @@ public:
     }
 };
 
-#define SHAPE_BUILDER_BOILERPLATE(ClassName, ParamsType) \
+#define SHAPE_BUILDER_BOILERPLATE(ClassName, ParamsType, ...) \
     class ClassName##ProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<Shape>>, public jac::ProtoBuilder::Properties { \
     public: \
         static std::shared_ptr<Shape>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) { \
@@ -557,13 +603,89 @@ public:
             proto.defineProperty("getColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) { \
                 return jac::toValue(ctx, static_cast<ClassName*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->color); \
             }), jac::PropFlags::Enumerable); \
+            __VA_ARGS__ \
         } \
     };
 
-SHAPE_BUILDER_BOILERPLATE(Circle, CircleParams)
-SHAPE_BUILDER_BOILERPLATE(Rectangle, RectangleParams)
-SHAPE_BUILDER_BOILERPLATE(Polygon, PolygonParams)
-SHAPE_BUILDER_BOILERPLATE(LineSegment, LineSegmentParams)
+SHAPE_BUILDER_BOILERPLATE(Circle, CircleParams,
+    proto.defineProperty("setRadius", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int v) {
+        static_cast<Circle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setRadius(v);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getRadius", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::Value::from(ctx, static_cast<Circle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getRadius());
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("setFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, bool v) {
+        static_cast<Circle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setFill(v);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::toValue(ctx, static_cast<Circle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getFill());
+    }), jac::PropFlags::Enumerable);
+)
+
+SHAPE_BUILDER_BOILERPLATE(Rectangle, RectangleParams,
+    proto.defineProperty("setWidth", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int v) {
+        static_cast<Rectangle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setWidth(v);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getWidth", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::Value::from(ctx, static_cast<Rectangle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getWidth());
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("setHeight", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int v) {
+        static_cast<Rectangle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setHeight(v);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getHeight", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::Value::from(ctx, static_cast<Rectangle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getHeight());
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("setFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, bool v) {
+        static_cast<Rectangle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setFill(v);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::toValue(ctx, static_cast<Rectangle*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getFill());
+    }), jac::PropFlags::Enumerable);
+)
+
+SHAPE_BUILDER_BOILERPLATE(Polygon, PolygonParams,
+    proto.defineProperty("setVertices", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak verticesVal) {
+        auto vertices_js = verticesVal.to<jac::ArrayWeak>();
+        std::vector<std::pair<int, int>> vertices;
+        uint32_t len = vertices_js.length();
+        vertices.reserve(len);
+        for (uint32_t i = 0; i < len; ++i) {
+            auto vertex_js = vertices_js.get(i).to<jac::ArrayWeak>();
+            vertices.push_back({vertex_js.get(0).to<int>(), vertex_js.get(1).to<int>()});
+        }
+        static_cast<Polygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setVertices(vertices);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getVertices", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        const auto& vertices = static_cast<Polygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getVertices();
+        jac::Array arr = jac::Array::create(ctx);
+        for (uint32_t i = 0; i < vertices.size(); ++i) {
+            jac::Array vertex = jac::Array::create(ctx);
+            vertex.set(0u, vertices[i].first);
+            vertex.set(1u, vertices[i].second);
+            arr.set(i, vertex);
+        }
+        return arr;
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("setFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, bool v) {
+        static_cast<Polygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setFill(v);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::toValue(ctx, static_cast<Polygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getFill());
+    }), jac::PropFlags::Enumerable);
+)
+
+SHAPE_BUILDER_BOILERPLATE(LineSegment, LineSegmentParams,
+    proto.defineProperty("setEndpoint", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int x2, int y2) {
+        static_cast<LineSegment*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setEndpoint(x2, y2);
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getX2", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::Value::from(ctx, static_cast<LineSegment*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getX2());
+    }), jac::PropFlags::Enumerable);
+    proto.defineProperty("getY2", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+        return jac::Value::from(ctx, static_cast<LineSegment*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getY2());
+    }), jac::PropFlags::Enumerable);
+)
+
 SHAPE_BUILDER_BOILERPLATE(Point, PointParams)
 
 class CollectionProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<Collection>>, public jac::ProtoBuilder::Properties {
@@ -636,6 +758,27 @@ public:
         proto.defineProperty("getColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
             return jac::toValue(ctx, static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->color);
         }), jac::PropFlags::Enumerable);
+
+        proto.defineProperty("setSides", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int v) {
+            static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setSides(v);
+        }), jac::PropFlags::Enumerable);
+        proto.defineProperty("getSides", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+            return jac::Value::from(ctx, static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getSides());
+        }), jac::PropFlags::Enumerable);
+
+        proto.defineProperty("setRadius", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int v) {
+            static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setRadius(v);
+        }), jac::PropFlags::Enumerable);
+        proto.defineProperty("getRadius", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+            return jac::Value::from(ctx, static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->radius());
+        }), jac::PropFlags::Enumerable);
+
+        proto.defineProperty("setFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, bool v) {
+            static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->setFill(v);
+        }), jac::PropFlags::Enumerable);
+        proto.defineProperty("getFill", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal) {
+            return jac::toValue(ctx, static_cast<RegularPolygon*>(ShapeProtoBuilder::unwrapShape(ctx, thisVal))->getFill());
+        }), jac::PropFlags::Enumerable);
     }
 };
 
@@ -677,13 +820,18 @@ private:
     std::unique_ptr<::Renderer> m_renderer;
     int m_width;
     int m_height;
+    int m_format;
+    int m_rotation;
 
 public:
-    RendererHolder(int width, int height) : m_renderer(std::make_unique<::Renderer>(width, height)), m_width(width), m_height(height) {}
+    RendererHolder(int width, int height, int format, int rotation)
+        : m_renderer(std::make_unique<::Renderer>(width, height)), m_width(width), m_height(height), m_format(format), m_rotation(rotation) {}
 
     ::Renderer* getRenderer() { return m_renderer.get(); }
     int getWidth() const { return m_width; }
     int getHeight() const { return m_height; }
+    int getFormat() const { return m_format; }
+    int getRotation() const { return m_rotation; }
 };
 
 class RendererProtoBuilder : public jac::ProtoBuilder::Opaque<RendererHolder>, public jac::ProtoBuilder::Properties {
@@ -695,7 +843,14 @@ public:
             w = 64;
             h = 64;
         }
-        return new RendererHolder(w, h);
+
+        int format = (args.size() > 2) ? args[2].to<int>() : 10;
+        if (format < 3 || format == 11 || format > 12) {
+            jac::Logger::error("Renderer: Invalid color format");
+        }
+        int rotation = (args.size() > 3) ? args[3].to<int>() : 0;
+
+        return new RendererHolder(w, h, format, rotation);
     }
 
     static void addProperties(jac::ContextRef ctx, jac::Object proto) {
@@ -726,12 +881,6 @@ public:
 
             bool antialias = (args.size() > 2) ? args[2].to<bool>() : true;
 
-            int format = (args.size() > 3) ? args[3].to<int>() : 10;
-            if (format < 3 || format == 11 || format > 12) {
-                jac::Logger::error("Renderer: Invalid color format");
-            }
-            int rotation = (args.size() > 4) ? args[4].to<int>() : 0;
-
             int w = holder->getWidth();
             int h = holder->getHeight();
             holder->getRenderer()->clear();
@@ -740,7 +889,7 @@ public:
 
             const Display& displayGrid = holder->getRenderer()->displayGrid;
 
-            size_t frameBytes = writeDenseFramebuffer(raw, maxBytes, w, h, format, antialias, displayGrid, rotation);
+            size_t frameBytes = writeDenseFramebuffer(raw, maxBytes, w, h, holder->getFormat(), antialias, displayGrid, holder->getRotation());
 
             if (frameBytes == 0) {
                 jac::Logger::error("Renderer.render: ArrayBuffer too small or invalid format");
@@ -752,7 +901,7 @@ public:
 
         proto.defineProperty("drawText", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) -> jac::Value {
             if (args.size() < 6) {
-                jac::Logger::error("Renderer.drawText: Missing arguments (buffer, text, x, y, font, color, [wrap], [format])");
+                jac::Logger::error("Renderer.drawText: Missing arguments (buffer, text, x, y, font, color, [wrap], [rotation])");
                 return jac::Value::undefined(ctx);
             }
 
@@ -775,12 +924,11 @@ public:
             Color color = jac::fromValue<Color>(ctx, args[5]);
 
             bool wrap = (args.size() >= 7) ? args[6].to<bool>() : false;
-
-            int format = (args.size() >= 8) ? args[7].to<int>() : 10;
-            int rotation = (args.size() >= 9) ? args[8].to<int>() : 0;
+            int rotation = (args.size() >= 8) ? args[7].to<int>() : 0;
 
             int w = holder->getWidth();
             int h = holder->getHeight();
+            int format = holder->getFormat();
 
             size_t bytesPerPixel = packedColorSize(format);
             size_t frameBytes = static_cast<size_t>(w) * static_cast<size_t>(h) * bytesPerPixel;
@@ -789,8 +937,10 @@ public:
                 return jac::Value::undefined(ctx);
             }
 
+            int totalRotation = holder->getRotation() + rotation;
+
             holder->getRenderer()->drawText(text, x, y, font, color, wrap, 0, [&](int px, int py, const Color& c) {
-                writeTextPixel(raw, maxBytes, w, h, format, rotation, px, py, c);
+                writeTextPixel(raw, maxBytes, w, h, format, totalRotation, px, py, c);
             });
 
             return jac::Value(ctx, static_cast<int>(frameBytes));

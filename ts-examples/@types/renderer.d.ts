@@ -9,6 +9,18 @@ declare module "shapes" {
         z?: number;
     }
 
+    /**
+     * A 2D affine transformation matrix:
+     * ```
+     * | a  c  e |
+     * | b  d  f |
+     * | 0  0  1 |
+     * ```
+     * `a`/`d` are the X/Y axis scale (and rotation/skew combined with `b`/`c`),
+     * `e`/`f` are the translation.
+     */
+    export type Matrix2D = [a: number, b: number, c: number, d: number, e: number, f: number];
+
     export class Shape {
         /**
          * Set the absolute position of the shape.
@@ -45,6 +57,21 @@ declare module "shapes" {
          * @param originY Optional y coordinate of the scale origin.
          */
         setScale(scaleX: number, scaleY: number, originX?: number, originY?: number): void;
+
+        /**
+         * Replace the position/rotation/scale transform with a fixed matrix.
+         * Overrides setPosition/translate/rotate/setScale until cleared with
+         * clearTransformation(). Useful for skew or externally-driven
+         * animation that doesn't fit the built-in transform.
+         * @param matrix The [a, b, c, d, e, f] matrix to use for this shape's local transform.
+         */
+        setTransformation(matrix: Matrix2D): void;
+
+        /**
+         * Remove a previously set transformation matrix, reverting to the
+         * position/rotation/scale transform.
+         */
+        clearTransformation(): void;
 
         /**
          * Set the z order used during rendering.
@@ -229,10 +256,18 @@ declare module "shapes" {
         fill?: boolean;
     }
 
+    /**
+     * A circle. Applying a non-uniform scale (setScale/setScaleX/setScaleY
+     * with differing x/y factors) renders it as an ellipse.
+     */
     export class Circle extends Shape implements Colorable {
         constructor(params: CircleParams);
         setColor(color: Color): void;
         getColor(): Color;
+        setRadius(radius: number): void;
+        getRadius(): number;
+        setFill(fill: boolean): void;
+        getFill(): boolean;
     }
 
     export interface RectangleParams extends ShapeParams {
@@ -246,6 +281,12 @@ declare module "shapes" {
         constructor(params: RectangleParams);
         setColor(color: Color): void;
         getColor(): Color;
+        setWidth(width: number): void;
+        getWidth(): number;
+        setHeight(height: number): void;
+        getHeight(): number;
+        setFill(fill: boolean): void;
+        getFill(): boolean;
     }
 
     export interface PolygonParams extends ShapeParams {
@@ -258,6 +299,10 @@ declare module "shapes" {
         constructor(params: PolygonParams);
         setColor(color: Color): void;
         getColor(): Color;
+        setVertices(vertices: [number, number][]): void;
+        getVertices(): [number, number][];
+        setFill(fill: boolean): void;
+        getFill(): boolean;
     }
 
     export interface LineSegmentParams extends ShapeParams {
@@ -270,6 +315,9 @@ declare module "shapes" {
         constructor(params: LineSegmentParams);
         setColor(color: Color): void;
         getColor(): Color;
+        setEndpoint(x2: number, y2: number): void;
+        getX2(): number;
+        getY2(): number;
     }
 
     export interface PointParams extends ShapeParams {
@@ -300,6 +348,12 @@ declare module "shapes" {
         constructor(params: RegularPolygonRadiusParams | RegularPolygonSideParams);
         setColor(color: Color): void;
         getColor(): Color;
+        setSides(sides: number): void;
+        getSides(): number;
+        setRadius(radius: number): void;
+        getRadius(): number;
+        setFill(fill: boolean): void;
+        getFill(): boolean;
     }
 }
 
@@ -365,18 +419,22 @@ declare module "renderer" {
     }
 
     export class Renderer {
-        constructor(width: number, height: number);
+        /**
+         * @param width The panel width in pixels.
+         * @param height The panel height in pixels.
+         * @param format The output pixel format used by render() and drawText().
+         * @param rotation Rotates the whole image by 90 degree increments.
+         */
+        constructor(width: number, height: number, format?: Format, rotation?: number);
 
         /**
          * Render a scene into the provided buffer.
          * @param scene The collection to render.
          * @param buffer The output pixel buffer.
          * @param antialias Whether to enable antialiasing.
-         * @param format The output pixel format.
-         * @param rotation Rotates the whole image by 90 degree increments.
          * @returns The number of bytes written.
          */
-        render(scene: Collection, buffer: ArrayBuffer, antialias?: boolean, format?: Format, rotation?: number): number;
+        render(scene: Collection, buffer: ArrayBuffer, antialias?: boolean): number;
 
         /**
          * Draw text into the provided buffer.
@@ -387,11 +445,10 @@ declare module "renderer" {
          * @param font The font to use.
          * @param color The text color.
          * @param wrap Whether to wrap lines to the renderer width.
-         * @param format The output pixel format.
-         * @param rotation Rotates the whole image by 90 degree increments, referenced to the panel's global origin - the same convention as render()'s rotation. Applied independently of any render() or other drawText() call: it only affects the pixels this call draws.
+         * @param rotation Rotates the text by 90 degree increments, relative to the rotation set in the constructor.
          * @returns The number of bytes written.
          */
-        drawText(buffer: ArrayBuffer, text: string, x: number, y: number, font: Font, color: Color, wrap: boolean, format?: Format, rotation?: number): number;
+        drawText(buffer: ArrayBuffer, text: string, x: number, y: number, font: Font, color: Color, wrap: boolean, rotation?: number): number;
     }
 
     // https://419.ecma-international.org/3.0/index.html#-15-display-class-pattern-pixel-format-values

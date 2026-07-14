@@ -1,5 +1,5 @@
 import { Font, Format, Renderer, Texture } from 'renderer';
-import { Collection, Circle, Rectangle } from 'shapes';
+import { Collection, Circle, LineSegment, Matrix2D, Polygon, Rectangle, RegularPolygon } from 'shapes';
 import { setupSpi, buildSyncBuffer, buildModesetBuffer, sendRpHub75Frame } from './renderer/spiSender.js';
 
 const PANEL_WIDTH = 64;
@@ -10,7 +10,7 @@ const BUFFER_SIZE_BYTES = MAX_PIXELS * 3;
 export async function solarSystemExample() {
     setupSpi();
 
-    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
+    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT, Format.RGB_888, 0);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
@@ -86,7 +86,7 @@ export async function solarSystemExample() {
     while (true) {
         earthCollection.rotate(1.5);
         moonCollection.rotate(3);
-        renderer.render(sunCollection, renderBuffer, true, Format.RGB_888);
+        renderer.render(sunCollection, renderBuffer, true);
         sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
         angle += 0.15;
         await sleep(1);
@@ -131,7 +131,7 @@ export async function rawDataExample() {
 export async function textExample() {
     setupSpi();
 
-    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
+    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT, Format.RGB_888, 0);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
     const font = new Font();
     const syncBuffer = buildSyncBuffer();
@@ -142,11 +142,11 @@ export async function textExample() {
     scene.add(rect);
 
     while (true) {
-        renderer.render(scene, renderBuffer, true, Format.RGB_888, 0);
-        renderer.drawText(renderBuffer, "rot0", 0, 0, font, 0xff0000, false, Format.RGB_888, 0);
-        renderer.drawText(renderBuffer, "rot1", 0, 0, font, 0x00ff00, false, Format.RGB_888, 1);
-        renderer.drawText(renderBuffer, "rot2", 0, 0, font, 0x0000ff, false, Format.RGB_888, 2);
-        renderer.drawText(renderBuffer, "rot3", 0, 0, font, 0xffff00, false, Format.RGB_888, 3);
+        renderer.render(scene, renderBuffer, true);
+        renderer.drawText(renderBuffer, "rot0", 0, 0, font, 0xff0000, false, 0);
+        renderer.drawText(renderBuffer, "rot1", 0, 0, font, 0x00ff00, false, 1);
+        renderer.drawText(renderBuffer, "rot2", 0, 0, font, 0x0000ff, false, 2);
+        renderer.drawText(renderBuffer, "rot3", 0, 0, font, 0xffff00, false, 3);
         sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
         await sleep(1);
     }
@@ -155,7 +155,7 @@ export async function textExample() {
 export async function textureExample() {
     setupSpi();
 
-    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
+    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT, Format.RGB_888, -1);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
@@ -177,7 +177,7 @@ export async function textureExample() {
 
     while (true) {
         rect.rotate(1);
-        renderer.render(scene, renderBuffer, true, Format.RGB_888, -1);
+        renderer.render(scene, renderBuffer, true);
         sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
         await sleep(1);
     }
@@ -186,7 +186,7 @@ export async function textureExample() {
 export async function removeExample() {
     setupSpi();
 
-    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT);
+    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT, Format.RGB_888, 0);
     const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
     const syncBuffer = buildSyncBuffer();
     const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
@@ -216,9 +216,64 @@ export async function removeExample() {
             }
         }
 
-        renderer.render(scene, renderBuffer, true, Format.RGB_888);
+        renderer.render(scene, renderBuffer, true);
         sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
         frame++;
+        await sleep(1);
+    }
+}
+
+export async function transformExample() {
+    setupSpi();
+
+    const renderer = new Renderer(PANEL_WIDTH, PANEL_HEIGHT, Format.RGB_888, 0);
+    const renderBuffer = new ArrayBuffer(BUFFER_SIZE_BYTES);
+    const syncBuffer = buildSyncBuffer();
+    const modesetBuffer = buildModesetBuffer(PANEL_WIDTH, Format.RGB_888);
+
+    const texture = new Texture();
+    texture.load("/data/data/renderer/brick.bmp");
+
+    const scene = new Collection({ x: 0, y: 0, z: 0 });
+
+    const blob = new Circle({ x: 16, y: 16, radius: 10, color: 0x00ffff, fill: true });
+    blob.setTexture(texture);
+    blob.setFixTexture(true);
+    blob.setTextureScale(2, 2);
+    scene.add(blob);
+
+    const panel = new Rectangle({ x: 40, y: 6, width: 12, height: 12, color: 0xff8800, fill: true });
+    scene.add(panel);
+
+    const skewed = new Rectangle({ x: 0, y: 0, width: 28, height: 14, color: 0xff00ff, fill: true });
+    skewed.setTexture(texture);
+    skewed.setTextureScale(2, 2);
+    scene.add(skewed);
+
+    let t = 0;
+
+    while (true) {
+        t += 0.05;
+
+        blob.setScale(1.5 + Math.sin(t), 1.5 + Math.cos(t));
+
+        const s = 1 + 0.3 * Math.sin(t * 2);
+        panel.setScale(s, s);
+
+        const shear = 0.4 * Math.sin(t);
+        const matrix: Matrix2D = {
+            a: 1, b: 0,
+            c: shear, d: 1,
+            e: 20, f: 40,
+        };
+        if (t < 10) {
+            skewed.setTransformationMatrix(matrix);
+        } else if (t >= 10 && t < 15) {
+            skewed.clearTransformationMatrix();
+        }
+
+        renderer.render(scene, renderBuffer, true);
+        sendRpHub75Frame(syncBuffer, modesetBuffer, renderBuffer);
         await sleep(1);
     }
 }
