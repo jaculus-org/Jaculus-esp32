@@ -1,7 +1,7 @@
 # get version
 version=$(git describe)
 
-help_text="Usage: $0 <board> <sdkconfig> <chip> <bootloader_offset>"
+help_text="Usage: $0 <board> <sdkconfig> <chip> <bootloader_offset> [--configure] [--fullclean]"
 
 # setup environment
 board=$1
@@ -29,6 +29,26 @@ if [ "$bootloader_offset" = "" ]; then
     exit 1
 fi
 
+shift 4
+
+configure=false
+fullclean=false
+for arg in "$@"; do
+    case "$arg" in
+        --configure)
+            configure=true
+            ;;
+        --fullclean)
+            fullclean=true
+            ;;
+        *)
+            echo "Error: unknown option $arg"
+            echo $help_text
+            exit 1
+            ;;
+    esac
+done
+
 echo "idf path:" $IDF_PATH
 
 out=out
@@ -39,6 +59,16 @@ tmp=$out/$board
 rm -f sdkconfig
 rm -f sdkconfig.defaults
 ln -s $sdkconfig sdkconfig.defaults
+
+if [ "$fullclean" = "true" ]; then
+    rm dependencies.lock
+    idf.py fullclean || exit 1
+fi
+
+if [ "$configure" = "true" ]; then
+    idf.py reconfigure || exit 1
+    exit 0
+fi
 
 # determine partition table offsets from the selected partition table
 partition_csv=$(grep 'CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=' sdkconfig.defaults | sed 's/CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="\(.*\)"/\1/')
@@ -53,8 +83,7 @@ if [ -z "$factory_offset" ] || [ -z "$storage_offset" ]; then
     exit 1
 fi
 
-# clean build
-idf.py fullclean build || exit 1
+idf.py build || exit 1
 
 # export package
 rm -rf $tmp
