@@ -261,15 +261,11 @@ export async function transformExample() {
         panel.setScale(s, s);
 
         const shear = 0.4 * Math.sin(t);
-        const matrix: Matrix2D = {
-            a: 1, b: 0,
-            c: shear, d: 1,
-            e: 20, f: 40,
-        };
+        const matrix: Matrix2D = [1, 0, shear, 1, 20, 40];
         if (t < 10) {
-            skewed.setTransformationMatrix(matrix);
+            skewed.setTransformation(matrix);
         } else if (t >= 10 && t < 15) {
-            skewed.clearTransformationMatrix();
+            skewed.clearTransformation();
         }
 
         renderer.render(scene, renderBuffer, true);
