@@ -143,7 +143,7 @@ struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI>, public jac::Prot
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);
             auto dataVec = feature.toStdVector(data);
             auto rx = spi.transfer(dataVec, cs);
-            return feature.toUint8Array(rx);
+            return feature.toUint8Array(std::move(rx));
         }));
         proto.defineProperty("write", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Value data, int cs) {
         std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
@@ -169,7 +169,7 @@ struct SPIProtoBuilder : public jac::ProtoBuilder::Opaque<SPI>, public jac::Prot
                 n += pak_size;
             }
 
-            return feature.toUint8Array(result);
+            return feature.toUint8Array(std::move(result));
         }));
         proto.defineProperty("setup", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object options) {
             auto& spi = *SPIProtoBuilder::getOpaque(ctx, thisVal);

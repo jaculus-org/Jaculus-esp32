@@ -109,7 +109,7 @@ class Serial {
 
             PendingRequest request = std::move(_pending.front());
             _pending.pop_front();
-            request.resolve.template call<void>(_feature->toUint8Array(data));
+            request.resolve.template call<void>(_feature->toUint8Array(std::move(data)));
         }
     }
 
@@ -235,7 +235,7 @@ public:
             std::lock_guard<std::mutex> lock(_rxMutex);
             std::vector<uint8_t> data;
             if (_pending.empty() && tryReadByte(data)) {
-                resolve.call<void>(_feature->toUint8Array(data));
+                resolve.call<void>(_feature->toUint8Array(std::move(data)));
                 return promise;
             }
 
@@ -258,7 +258,7 @@ public:
             std::lock_guard<std::mutex> lock(_rxMutex);
             std::vector<uint8_t> data;
             if (_pending.empty() && tryReadAll(data)) {
-                resolve.call<void>(_feature->toUint8Array(data));
+                resolve.call<void>(_feature->toUint8Array(std::move(data)));
                 return promise;
             }
 

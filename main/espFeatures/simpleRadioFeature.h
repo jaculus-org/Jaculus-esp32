@@ -175,7 +175,7 @@ public:
                 SimpleRadio.setOnBlobCallback([this, callback](std::span<const uint8_t> data, PacketInfo info) mutable {
                     auto dataVec = std::vector<uint8_t>(data.begin(), data.end());
                     this->scheduleEvent([this, callback, data = std::move(dataVec), info]() mutable {
-                        callback.call<void>(this->toUint8Array(data), info);
+                        callback.call<void>(this->toUint8Array(std::move(data)), info);
                     });
                 });
                 break;

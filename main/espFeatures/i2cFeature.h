@@ -99,7 +99,7 @@ struct I2CProtoBuilder : public jac::ProtoBuilder::Opaque<I2C<typename I2CFeatur
             auto& i2c = *I2CProtoBuilder::getOpaque(ctx, thisVal);
             auto data = i2c.readFrom(address, quantity);
 
-            return feature.toUint8Array(data);
+            return feature.toUint8Array(std::move(data));
         }));
 
         proto.defineProperty("writeTo", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, int address, jac::Value data) {
@@ -116,7 +116,7 @@ struct I2CProtoBuilder : public jac::ProtoBuilder::Opaque<I2C<typename I2CFeatur
             auto dataVec = feature.toStdVector(data);
             auto res = i2c.writeRead(address, std::move(dataVec), quantity);
 
-            return feature.toUint8Array(res);
+            return feature.toUint8Array(std::move(res));
         }));
 
         proto.defineProperty("setup", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object options) {

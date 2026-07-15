@@ -1,6 +1,6 @@
 declare module "simpleradio" {
     type PacketDataType = "number" | "string" | "keyvalue" | "blob";
-    type BlobData = ArrayBuffer | Uint8Array | number[];
+    type BlobData = ArrayBuffer | Uint8Array | number[] | boolean;
 
     interface PacketInfo {
         group: number;

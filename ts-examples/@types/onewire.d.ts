@@ -1,5 +1,5 @@
 declare module "onewire" {
-    type OneWireData = ArrayBuffer | Uint8Array | number[] | string | number;
+    type OneWireData = ArrayBuffer | Uint8Array | number[] | string | number | boolean;
 
     class OneWire {
         /**

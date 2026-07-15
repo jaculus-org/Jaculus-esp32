@@ -1,5 +1,5 @@
 declare module "spi" {
-    type SPIData = ArrayBuffer | Uint8Array | number[] | string | number;
+    type SPIData = ArrayBuffer | Uint8Array | number[] | string | number | boolean;
 
     interface SPI {
         /**

@@ -1,6 +1,6 @@
 declare module "i2c" {
 
-    type I2CData = ArrayBuffer | Uint8Array | number[] | string | number;
+    type I2CData = ArrayBuffer | Uint8Array | number[] | string | number | boolean;
 
     interface I2C {
         /**

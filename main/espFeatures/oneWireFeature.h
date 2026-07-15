@@ -192,7 +192,7 @@ struct OneWireProtoBuilder : public jac::ProtoBuilder::Opaque<OneWire<typename O
             }
 
             auto data = ow.read(count);
-            return feature.toUint8Array(data);
+            return feature.toUint8Array(std::move(data));
         }));
 
         proto.defineProperty("write", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Value dataVal) {
@@ -223,7 +223,7 @@ struct OneWireProtoBuilder : public jac::ProtoBuilder::Opaque<OneWire<typename O
 
             auto arr = jac::Array::create(ctx);
             for (size_t i = 0; i < devices.size(); i++) {
-                jac::Value deviceVal = feature.toUint8Array(devices[i]);
+                jac::Value deviceVal = feature.toUint8Array(std::move(devices[i]));
                 arr.set(i, deviceVal);
             }
 
