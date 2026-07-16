@@ -594,7 +594,6 @@ public:
             return new std::shared_ptr<Shape>(shape); \
         } \
         static void addProperties(jac::ContextRef ctx, jac::Object proto) { \
-            ShapeProtoBuilder::addProperties(ctx, proto); \
             jac::FunctionFactory ff(ctx); \
             proto.defineProperty("setColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak colorVal) { \
                 Color color = jac::fromValue<Color>(ctx, colorVal); \
@@ -697,7 +696,6 @@ public:
     }
 
     static void addProperties(jac::ContextRef ctx, jac::Object proto) {
-        ShapeProtoBuilder::addProperties(ctx, proto);
         jac::FunctionFactory ff(ctx);
 
         proto.defineProperty("add", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::Object shapeVal) {
@@ -747,7 +745,6 @@ public:
     }
 
     static void addProperties(jac::ContextRef ctx, jac::Object proto) {
-        ShapeProtoBuilder::addProperties(ctx, proto);
         jac::FunctionFactory ff(ctx);
 
         proto.defineProperty("setColor", ff.newFunctionThis([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueWeak colorVal) {
@@ -995,6 +992,7 @@ public:
 
     void initialize() {
         Next::initialize();
+        jac::Object shapeProto = ShapeClass::getProto(this->context());
         jac::Module& rendererModule = this->newModule("renderer");
         rendererModule.addExport("Renderer", RendererClass::getConstructor(this->context()));
 
@@ -1016,11 +1014,18 @@ public:
 
         jac::Module& shapesModule = this->newModule("shapes");
         shapesModule.addExport("Collection", CollectionClass::getConstructor(this->context()));
+        CollectionClass::getProto(this->context()).setPrototype(shapeProto);
         shapesModule.addExport("Circle", CircleClass::getConstructor(this->context()));
+        CircleClass::getProto(this->context()).setPrototype(shapeProto);
         shapesModule.addExport("Rectangle", RectangleClass::getConstructor(this->context()));
+        RectangleClass::getProto(this->context()).setPrototype(shapeProto);
         shapesModule.addExport("Polygon", PolygonClass::getConstructor(this->context()));
+        PolygonClass::getProto(this->context()).setPrototype(shapeProto);
         shapesModule.addExport("LineSegment", LineSegmentClass::getConstructor(this->context()));
+        LineSegmentClass::getProto(this->context()).setPrototype(shapeProto);
         shapesModule.addExport("Point", PointClass::getConstructor(this->context()));
+        PointClass::getProto(this->context()).setPrototype(shapeProto);
         shapesModule.addExport("RegularPolygon", RegularPolygonClass::getConstructor(this->context()));
+        RegularPolygonClass::getProto(this->context()).setPrototype(shapeProto);
     }
 };
