@@ -51,7 +51,7 @@ class SmartLedFeature : public Next {
     static inline std::set<int> _usedRmtChannels;
 
     struct SmartLedProtoBuilder : public jac::ProtoBuilder::Opaque<SmartLed>, public jac::ProtoBuilder::Properties {
-        static SmartLed* constructOpaque(JSContext* ctx, std::vector<jac::ValueWeak> args) {
+        static SmartLed* constructOpaque(JSContext* ctx, jac::ValueVectorWeak args) {
             if (args.size() < 2) {
                 throw std::runtime_error("Invalid number of arguments");
             }
@@ -133,13 +133,14 @@ public:
     void initialize() {
         Next::initialize();
 
-        jac::Module& mod = this->newModule("smartled");
-        jac::Function ctor = SmartLedClass::getConstructor(this->context());
-        mod.addExport("SmartLed", ctor);
-        mod.addExport("LED_WS2812", jac::Value::from(this->context(), LED_WS2812));
-        mod.addExport("LED_WS2812B", jac::Value::from(this->context(), LED_WS2812B));
-        mod.addExport("LED_WS2812B_2020", jac::Value::from(this->context(), LedType{ 400, 800, 850, 450, 300000 }));
-        mod.addExport("LED_WS2813", jac::Value::from(this->context(), LED_WS2813));
-        mod.addExport("LED_SK6812", jac::Value::from(this->context(), LED_SK6812));
+        this->newModule("smartled", [this](jac::Module& mod) {
+            jac::Function ctor = SmartLedClass::getConstructor(this->context());
+            mod.addExport("SmartLed", ctor);
+            mod.addExport("LED_WS2812", jac::Value::from(this->context(), LED_WS2812));
+            mod.addExport("LED_WS2812B", jac::Value::from(this->context(), LED_WS2812B));
+            mod.addExport("LED_WS2812B_2020", jac::Value::from(this->context(), LedType{ 400, 800, 850, 450, 300000 }));
+            mod.addExport("LED_WS2813", jac::Value::from(this->context(), LED_WS2813));
+            mod.addExport("LED_SK6812", jac::Value::from(this->context(), LED_SK6812));
+        });
     }
 };

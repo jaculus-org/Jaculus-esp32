@@ -154,9 +154,10 @@ public:
     void initialize() {
         Next::initialize();
 
-        jac::Module& mod = this->newModule("i2c");
-        for (int i = 0; i < SOC_I2C_NUM; ++i) {
-            mod.addExport("I2C" + std::to_string(i + 1), I2CClass::createInstance(this->context(), new I2C<typename Next::PlatformInfo>(i)));
-        }
+        this->newModule("i2c", [this](jac::Module& mod) {
+            for (int i = 0; i < SOC_I2C_NUM; ++i) {
+                mod.addExport("I2C" + std::to_string(i + 1), I2CClass::createInstance(this->context(), new I2C<typename Next::PlatformInfo>(i)));
+            }
+        });
     }
 };

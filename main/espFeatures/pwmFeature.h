@@ -407,7 +407,7 @@ public:
     }
 
 public:
-    static Reservation* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static Reservation* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         if (args.size() < 1) {
             throw jac::Exception::create(jac::Exception::Type::TypeError, "Invalid number of arguments");
         }
@@ -464,7 +464,7 @@ public:
         }), jac::PropFlags::Enumerable);
     }
 
-    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, std::vector<jac::ValueWeak> args) {
+    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, jac::ValueVectorWeak args) {
         static_cast<Feature*>(JS_GetContextOpaque(ctx))->extendLifetime(thisVal);
     }
 };
@@ -498,8 +498,9 @@ public:
     void initialize() {
         Next::initialize();
 
-        auto& mod = this->newModule("pwm");
-        mod.addExport("PWM", FixedPwmClass::getConstructor(this->context()));
-        mod.addExport("VariablePWM", FlexiblePwmClass::getConstructor(this->context()));
+        this->newModule("pwm", [this](jac::Module& mod) {
+            mod.addExport("PWM", FixedPwmClass::getConstructor(this->context()));
+            mod.addExport("VariablePWM", FlexiblePwmClass::getConstructor(this->context()));
+        });
     }
 };

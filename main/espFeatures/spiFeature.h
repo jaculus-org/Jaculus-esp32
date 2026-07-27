@@ -228,9 +228,10 @@ public:
     void initialize() {
         Next::initialize();
 
-        jac::Module& mod = this->newModule("spi");
-        for (int i = SPI2_HOST; i < SPI_HOST_MAX; ++i) {
-            mod.addExport("SPI" + std::to_string(i + 1), SPIClass::createInstance(this->context(), new SPI(i)));
-        }
+        this->newModule("spi", [this](jac::Module& mod) {
+            for (int i = SPI2_HOST; i < SPI_HOST_MAX; ++i) {
+                mod.addExport("SPI" + std::to_string(i + 1), SPIClass::createInstance(this->context(), new SPI(i)));
+            }
+        });
     }
 };

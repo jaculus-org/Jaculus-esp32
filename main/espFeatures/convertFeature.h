@@ -36,7 +36,8 @@ public:
         std::vector<uint8_t> dataVec;
         if (JS_IsString(data.getVal())) {
             auto str = data.toString();
-            dataVec.assign(str.begin(), str.end());
+            auto view = str.view();
+            dataVec.assign(view.begin(), view.end());
         }
         else if (JS_IsBool(data.getVal())) {
             dataVec.push_back(static_cast<uint8_t>(JS_ToBool(this->context(), data.getVal())));

@@ -17,7 +17,7 @@ class GridUiBuilderProtoBuilder : public jac::ProtoBuilder::Opaque<GridUiHolder>
     friend class GridUiHolder;
 
     template<typename BuilderT, typename WidgetT>
-    static jac::Object builder(jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) {
+    static jac::Object builder(jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) {
         if (args.size() < 4) {
             throw jac::Exception::create(jac::Exception::Type::TypeError, "expected at least 4 arguments");
         }

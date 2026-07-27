@@ -51,25 +51,25 @@ public:
             this->scheduleEvent(event);
         });
 
-        jac::FunctionFactory ff(this->context());
+        this->newModule("gridui", [this](jac::Module& griduiModule) {
+            jac::FunctionFactory ff(this->context());
 
-        jac::Module& griduiModule = this->newModule("gridui");
-
-        griduiModule.addExport("begin", ff.newFunction(noal::function([this](std::string ownerName, std::string deviceName, jac::Function builderCallback){
-            _holder.begin(this->context(), ownerName, deviceName, builderCallback);
-        })));
-        griduiModule.addExport("end", ff.newFunction(noal::function([this]() {
-            _holder.end(this->context());
-        })));
-        griduiModule.addExport("changeTab", ff.newFunction(noal::function([](int tab){
-            UI.changeTab(tab);
-        })));
-        griduiModule.addExport("log", ff.newFunction(noal::function([this](std::string message){
-            _holder.log(message);
-        })));
-        griduiModule.addExport("version", ff.newFunction(noal::function([](){
-            return RB_GRIDUI_VERSION;
-        })));
+            griduiModule.addExport("begin", ff.newFunction(noal::function([this](std::string ownerName, std::string deviceName, jac::Function builderCallback){
+                _holder.begin(this->context(), ownerName, deviceName, builderCallback);
+            })));
+            griduiModule.addExport("end", ff.newFunction(noal::function([this]() {
+                _holder.end(this->context());
+            })));
+            griduiModule.addExport("changeTab", ff.newFunction(noal::function([](int tab){
+                UI.changeTab(tab);
+            })));
+            griduiModule.addExport("log", ff.newFunction(noal::function([this](std::string message){
+                _holder.log(message);
+            })));
+            griduiModule.addExport("version", ff.newFunction(noal::function([](){
+                return RB_GRIDUI_VERSION;
+            })));
+        });
     }
 
     ~GridUiFeature() {

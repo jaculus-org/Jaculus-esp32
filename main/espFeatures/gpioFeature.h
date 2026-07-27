@@ -373,30 +373,31 @@ public:
 
         gpio_install_isr_service(0);
 
-        jac::FunctionFactory ff(this->context());
-        auto& module = this->newModule("gpio");
-        module.addExport("pinMode", ff.newFunction(noal::function(&Gpio_::pinMode, &gpio)));
-        module.addExport("read", ff.newFunction(noal::function(&Gpio_::read, &gpio)));
-        module.addExport("write", ff.newFunction(noal::function(&Gpio_::write, &gpio)));
+        this->newModule("gpio", [this](jac::Module& module) {
+            jac::FunctionFactory ff(this->context());
+            module.addExport("pinMode", ff.newFunction(noal::function(&Gpio_::pinMode, &gpio)));
+            module.addExport("read", ff.newFunction(noal::function(&Gpio_::read, &gpio)));
+            module.addExport("write", ff.newFunction(noal::function(&Gpio_::write, &gpio)));
 
-        // TODO: rename pinMode and PinMode to avoid confusion
-        jac::Object pinModeEnum = jac::Object::create(this->context());
-        pinModeEnum.set("DISABLE", static_cast<int>(PinMode::DISABLE));
-        pinModeEnum.set("OUTPUT", static_cast<int>(PinMode::OUTPUT));
-        pinModeEnum.set("INPUT", static_cast<int>(PinMode::INPUT));
-        pinModeEnum.set("INPUT_PULLUP", static_cast<int>(PinMode::INPUT_PULLUP));
-        pinModeEnum.set("INPUT_PULLDOWN", static_cast<int>(PinMode::INPUT_PULLDOWN));
-        module.addExport("PinMode", pinModeEnum);
+            // TODO: rename pinMode and PinMode to avoid confusion
+            jac::Object pinModeEnum = jac::Object::create(this->context());
+            pinModeEnum.set("DISABLE", static_cast<int>(PinMode::DISABLE));
+            pinModeEnum.set("OUTPUT", static_cast<int>(PinMode::OUTPUT));
+            pinModeEnum.set("INPUT", static_cast<int>(PinMode::INPUT));
+            pinModeEnum.set("INPUT_PULLUP", static_cast<int>(PinMode::INPUT_PULLUP));
+            pinModeEnum.set("INPUT_PULLDOWN", static_cast<int>(PinMode::INPUT_PULLDOWN));
+            module.addExport("PinMode", pinModeEnum);
 
-        module.addExport("on", ff.newFunction([this](std::string event, int pin, jac::Function callback) {
-            this->gpio.on(event, pin, [this, callback = std::move(callback)](Next::TimePoint timestamp) mutable {
-                jac::Object info = jac::Object::create(this->context());
-                info.set("timestamp", this->createTimestamp(timestamp));
+            module.addExport("on", ff.newFunction([this](std::string event, int pin, jac::Function callback) {
+                this->gpio.on(event, pin, [this, callback = std::move(callback)](Next::TimePoint timestamp) mutable {
+                    jac::Object info = jac::Object::create(this->context());
+                    info.set("timestamp", this->createTimestamp(timestamp));
 
-                callback.call<void>(info);
-            });
-        }));
-        module.addExport("off", ff.newFunction(noal::function(&Gpio_::off, &gpio)));
+                    callback.call<void>(info);
+                });
+            }));
+            module.addExport("off", ff.newFunction(noal::function(&Gpio_::off, &gpio)));
+        });
     }
 
     GpioFeature() : gpio(this) {}

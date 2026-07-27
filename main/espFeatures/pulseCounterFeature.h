@@ -200,7 +200,7 @@ template<class Feature>
 class PulseCounterProtoBuilder : public jac::ProtoBuilder::Opaque<PulseCounter<Feature>>, jac::ProtoBuilder::Properties, jac::ProtoBuilder::LifetimeHandles {
     using PulseCounter_ = PulseCounter<Feature>;
 public:
-    static PulseCounter_* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static PulseCounter_* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         if (args.size() < 1) {
             throw jac::Exception::create(jac::Exception::Type::TypeError, "Invalid number of arguments");
         }
@@ -245,7 +245,7 @@ public:
         }), jac::PropFlags::Enumerable);
     }
 
-    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, std::vector<jac::ValueWeak> args) {
+    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, jac::ValueVectorWeak args) {
         PulseCounter_& self = *PulseCounterProtoBuilder::getOpaque(ctx, thisVal);
         self._feature->extendLifetime(thisVal);
     }
@@ -277,7 +277,7 @@ struct NonexistentPulseCounterProtoBuilder : public jac::ProtoBuilder::Propertie
         }), jac::PropFlags::Enumerable);
     }
 
-    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, std::vector<jac::ValueWeak> args) {
+    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, jac::ValueVectorWeak args) {
         throw jac::Exception::create(jac::Exception::Type::InternalError, "Pulse counter not available on this device");
     }
 };
@@ -299,23 +299,23 @@ public:
     void initialize() {
         Next::initialize();
 
-        auto& mod = this->newModule("pulseCounter");
+        this->newModule("pulseCounter", [this](jac::Module& mod) {
+            jac::Object pcntCtor = PulseCounterClass::getConstructor(this->context());
 
-        jac::Object pcntCtor = PulseCounterClass::getConstructor(this->context());
+            jac::Object edgeAction = jac::Object::create(this->context());
+            edgeAction.defineProperty("Hold", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_edge_action_t::PCNT_CHANNEL_EDGE_ACTION_HOLD)), jac::PropFlags::Enumerable);
+            edgeAction.defineProperty("Increase", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_edge_action_t::PCNT_CHANNEL_EDGE_ACTION_INCREASE)), jac::PropFlags::Enumerable);
+            edgeAction.defineProperty("Decrease", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_edge_action_t::PCNT_CHANNEL_EDGE_ACTION_DECREASE)), jac::PropFlags::Enumerable);
 
-        jac::Object edgeAction = jac::Object::create(this->context());
-        edgeAction.defineProperty("Hold", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_edge_action_t::PCNT_CHANNEL_EDGE_ACTION_HOLD)), jac::PropFlags::Enumerable);
-        edgeAction.defineProperty("Increase", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_edge_action_t::PCNT_CHANNEL_EDGE_ACTION_INCREASE)), jac::PropFlags::Enumerable);
-        edgeAction.defineProperty("Decrease", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_edge_action_t::PCNT_CHANNEL_EDGE_ACTION_DECREASE)), jac::PropFlags::Enumerable);
+            jac::Object levelAction = jac::Object::create(this->context());
+            levelAction.defineProperty("Keep", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_level_action_t::PCNT_CHANNEL_LEVEL_ACTION_KEEP)), jac::PropFlags::Enumerable);
+            levelAction.defineProperty("Inverse", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_level_action_t::PCNT_CHANNEL_LEVEL_ACTION_INVERSE)), jac::PropFlags::Enumerable);
+            levelAction.defineProperty("Hold", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_level_action_t::PCNT_CHANNEL_LEVEL_ACTION_HOLD)), jac::PropFlags::Enumerable);
 
-        jac::Object levelAction = jac::Object::create(this->context());
-        levelAction.defineProperty("Keep", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_level_action_t::PCNT_CHANNEL_LEVEL_ACTION_KEEP)), jac::PropFlags::Enumerable);
-        levelAction.defineProperty("Inverse", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_level_action_t::PCNT_CHANNEL_LEVEL_ACTION_INVERSE)), jac::PropFlags::Enumerable);
-        levelAction.defineProperty("Hold", jac::Value::from(this->context(), static_cast<int>(pcnt_channel_level_action_t::PCNT_CHANNEL_LEVEL_ACTION_HOLD)), jac::PropFlags::Enumerable);
+            mod.addExport("EdgeAction", edgeAction);
+            mod.addExport("LevelAction", levelAction);
 
-        mod.addExport("EdgeAction", edgeAction);
-        mod.addExport("LevelAction", levelAction);
-
-        mod.addExport("PulseCounter", pcntCtor);
+            mod.addExport("PulseCounter", pcntCtor);
+        });
     }
 };

@@ -55,29 +55,30 @@ public:
     void initialize() {
         Next::initialize();
 
-        jac::FunctionFactory ff(this->context());
-        jac::Module& adcModule = this->newModule("adc");
+        this->newModule("adc", [this](jac::Module& adcModule) {
+            jac::FunctionFactory ff(this->context());
 
-        jac::Object attten = jac::Object::create(this->context());
-        attten.defineProperty("Db0", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_0)));
-        attten.defineProperty("Db2_5", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_2_5)));
-        attten.defineProperty("Db6", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_6)));
-        attten.defineProperty("Db12", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_12)));
+            jac::Object attten = jac::Object::create(this->context());
+            attten.defineProperty("Db0", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_0)));
+            attten.defineProperty("Db2_5", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_2_5)));
+            attten.defineProperty("Db6", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_6)));
+            attten.defineProperty("Db12", jac::Value::from(this->context(), static_cast<int>(ADC_ATTEN_DB_12)));
 
-        adcModule.addExport("configure", ff.newFunctionVariadic([this](std::vector<jac::ValueWeak> args) {
-            if (args.size() < 1 || args.size() > 2) {
-                throw std::runtime_error("Invalid number of arguments");
-            }
+            adcModule.addExport("configure", ff.newFunctionVariadic([this](jac::ValueVectorWeak args) {
+                if (args.size() < 1 || args.size() > 2) {
+                    throw std::runtime_error("Invalid number of arguments");
+                }
 
-            int pin = args[0].to<int>();
-            int atten = static_cast<int>(ADC_ATTEN_DB_12);
-            if (args.size() == 2) {
-                atten = args[1].to<int>();
-            }
+                int pin = args[0].to<int>();
+                int atten = static_cast<int>(ADC_ATTEN_DB_12);
+                if (args.size() == 2) {
+                    atten = args[1].to<int>();
+                }
 
-            adc.configure(pin, atten);
-        }));
-        adcModule.addExport("read", ff.newFunction(noal::function(&Adc::read, &adc)));
-        adcModule.addExport("Attenuation", attten);
+                adc.configure(pin, atten);
+            }));
+            adcModule.addExport("read", ff.newFunction(noal::function(&Adc::read, &adc)));
+            adcModule.addExport("Attenuation", attten);
+        });
     }
 };

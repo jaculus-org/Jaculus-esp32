@@ -167,7 +167,7 @@ template<class OneWireFeature>
 struct OneWireProtoBuilder : public jac::ProtoBuilder::Opaque<OneWire<typename OneWireFeature::PlatformInfo>>, public jac::ProtoBuilder::Properties {
     using OneWire_ = OneWire<typename OneWireFeature::PlatformInfo>;
 
-    static OneWire_* constructOpaque(jac::ContextRef /*ctx*/, std::vector<jac::ValueWeak> args) {
+    static OneWire_* constructOpaque(jac::ContextRef /*ctx*/, jac::ValueVectorWeak args) {
         if (args.size() != 1) {
             throw std::runtime_error("Expected one argument: pin");
         }
@@ -182,7 +182,7 @@ struct OneWireProtoBuilder : public jac::ProtoBuilder::Opaque<OneWire<typename O
         OneWireProtoBuilder::template addMethodMember<decltype(&OneWire_::skip), &OneWire_::skip>(ctx, proto, "skip");
         OneWireProtoBuilder::template addMethodMember<decltype(&OneWire_::close), &OneWire_::close>(ctx, proto, "close");
 
-        proto.defineProperty("read", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) {
+        proto.defineProperty("read", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) {
             auto& feature = *reinterpret_cast<OneWireFeature*>(JS_GetContextOpaque(ctx));  // NOLINT
             auto& ow = *OneWireProtoBuilder::getOpaque(ctx, thisVal);
 
@@ -254,7 +254,8 @@ public:
     void initialize() {
         Next::initialize();
 
-        jac::Module& mod = this->newModule("onewire");
-        mod.addExport("OneWire", OneWireClass::getConstructor(this->context()));
+        this->newModule("onewire", [this](jac::Module& mod) {
+            mod.addExport("OneWire", OneWireClass::getConstructor(this->context()));
+        });
     }
 };

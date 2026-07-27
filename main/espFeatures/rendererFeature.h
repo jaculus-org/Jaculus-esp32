@@ -374,7 +374,7 @@ public:
         return getOpaque(ctx, val);
     }
 
-    static Texture* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static Texture* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         return new Texture();
     }
 
@@ -468,7 +468,7 @@ private:
             {"translate", [](Shape* s, float x, float y) { s->translate(x, y); }},
         });
 
-        proto.defineProperty("setScale", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) {
+        proto.defineProperty("setScale", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) {
             if (args.size() < 2) {
                 throw jac::Exception::create(jac::Exception::Type::TypeError, "setScale: expected at least (scaleX, scaleY)");
             }
@@ -588,7 +588,7 @@ public:
 #define SHAPE_BUILDER_BOILERPLATE(ClassName, ParamsType, ...) \
     class ClassName##ProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<Shape>>, public jac::ProtoBuilder::Properties { \
     public: \
-        static std::shared_ptr<Shape>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) { \
+        static std::shared_ptr<Shape>* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) { \
             auto shape = new ClassName(jac::fromValue<ParamsType>(ctx, args[0])); \
             shape->addCollider(nullptr); \
             return new std::shared_ptr<Shape>(shape); \
@@ -689,7 +689,7 @@ SHAPE_BUILDER_BOILERPLATE(Point, PointParams)
 
 class CollectionProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<Collection>>, public jac::ProtoBuilder::Properties {
 public:
-    static std::shared_ptr<Collection>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static std::shared_ptr<Collection>* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         auto rawPtr = new Collection(jac::fromValue<ShapeParams>(ctx, args[0]));
         rawPtr->addCollider(nullptr);
         return new std::shared_ptr<Collection>(rawPtr);
@@ -732,7 +732,7 @@ public:
 
 class RegularPolygonProtoBuilder : public jac::ProtoBuilder::Opaque<std::shared_ptr<Shape>>, public jac::ProtoBuilder::Properties {
 public:
-    static std::shared_ptr<Shape>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static std::shared_ptr<Shape>* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         auto obj = args[0].to<jac::ObjectWeak>();
         Shape* rawShape;
         if (obj.hasProperty("radius")) {
@@ -785,7 +785,7 @@ public:
         return getOpaque(ctx, val);
     }
 
-    static Font* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static Font* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         return new Font();
     }
 
@@ -833,7 +833,7 @@ public:
 
 class RendererProtoBuilder : public jac::ProtoBuilder::Opaque<RendererHolder>, public jac::ProtoBuilder::Properties {
 public:
-    static RendererHolder* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static RendererHolder* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         int w = args[0].to<int>();
         int h = args[1].to<int>();
         if (w <= 0 || w > 512 || h <= 0 || h > 512) {
@@ -853,7 +853,7 @@ public:
     static void addProperties(jac::ContextRef ctx, jac::Object proto) {
         jac::FunctionFactory ff(ctx);
 
-        proto.defineProperty("render", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) -> jac::Value {
+        proto.defineProperty("render", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) -> jac::Value {
             if (args.size() < 2) {
                 jac::Logger::error("Renderer.render: Missing arguments (collection, buffer)");
                 return jac::Value::undefined(ctx);
@@ -896,7 +896,7 @@ public:
             return jac::Value(ctx, static_cast<int>(frameBytes));
         }), jac::PropFlags::Enumerable);
 
-        proto.defineProperty("drawText", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) -> jac::Value {
+        proto.defineProperty("drawText", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) -> jac::Value {
             if (args.size() < 6) {
                 jac::Logger::error("Renderer.drawText: Missing arguments (buffer, text, x, y, font, color, [wrap], [rotation])");
                 return jac::Value::undefined(ctx);
@@ -992,40 +992,42 @@ public:
 
     void initialize() {
         Next::initialize();
-        jac::Object shapeProto = ShapeClass::getProto(this->context());
-        jac::Module& rendererModule = this->newModule("renderer");
-        rendererModule.addExport("Renderer", RendererClass::getConstructor(this->context()));
+        this->newModule("renderer", [this](jac::Module& rendererModule) {
+            rendererModule.addExport("Renderer", RendererClass::getConstructor(this->context()));
 
-        rendererModule.addExport("Font", FontClass::getConstructor(this->context()));
-        rendererModule.addExport("Texture", TextureClass::getConstructor(this->context()));
+            rendererModule.addExport("Font", FontClass::getConstructor(this->context()));
+            rendererModule.addExport("Texture", TextureClass::getConstructor(this->context()));
 
-        // https://419.ecma-international.org/3.0/index.html#-15-display-class-pattern-pixel-format-values
-        jac::Object formatObj = jac::Object::create(this->context());
-        formatObj.set("MONOCHROME", 3);
-        formatObj.set("GRAYSCALE_4_BIT", 4);
-        formatObj.set("GRAYSCALE_8_BIT", 5);
-        formatObj.set("RGB_332", 6);
-        formatObj.set("RGB_565_LITTLE", 7);
-        formatObj.set("RGB_565_BIG", 8);
-        formatObj.set("RGB_888", 9);
-        formatObj.set("RGBA_8888", 10);
-        formatObj.set("XRGB", 12);
-        rendererModule.addExport("Format", formatObj);
+            // https://419.ecma-international.org/3.0/index.html#-15-display-class-pattern-pixel-format-values
+            jac::Object formatObj = jac::Object::create(this->context());
+            formatObj.set("MONOCHROME", 3);
+            formatObj.set("GRAYSCALE_4_BIT", 4);
+            formatObj.set("GRAYSCALE_8_BIT", 5);
+            formatObj.set("RGB_332", 6);
+            formatObj.set("RGB_565_LITTLE", 7);
+            formatObj.set("RGB_565_BIG", 8);
+            formatObj.set("RGB_888", 9);
+            formatObj.set("RGBA_8888", 10);
+            formatObj.set("XRGB", 12);
+            rendererModule.addExport("Format", formatObj);
+        });
 
-        jac::Module& shapesModule = this->newModule("shapes");
-        shapesModule.addExport("Collection", CollectionClass::getConstructor(this->context()));
-        CollectionClass::getProto(this->context()).setPrototype(shapeProto);
-        shapesModule.addExport("Circle", CircleClass::getConstructor(this->context()));
-        CircleClass::getProto(this->context()).setPrototype(shapeProto);
-        shapesModule.addExport("Rectangle", RectangleClass::getConstructor(this->context()));
-        RectangleClass::getProto(this->context()).setPrototype(shapeProto);
-        shapesModule.addExport("Polygon", PolygonClass::getConstructor(this->context()));
-        PolygonClass::getProto(this->context()).setPrototype(shapeProto);
-        shapesModule.addExport("LineSegment", LineSegmentClass::getConstructor(this->context()));
-        LineSegmentClass::getProto(this->context()).setPrototype(shapeProto);
-        shapesModule.addExport("Point", PointClass::getConstructor(this->context()));
-        PointClass::getProto(this->context()).setPrototype(shapeProto);
-        shapesModule.addExport("RegularPolygon", RegularPolygonClass::getConstructor(this->context()));
-        RegularPolygonClass::getProto(this->context()).setPrototype(shapeProto);
+        this->newModule("shapes", [this](jac::Module& shapesModule) {
+            jac::Object shapeProto = ShapeClass::getProto(this->context());
+            shapesModule.addExport("Collection", CollectionClass::getConstructor(this->context()));
+            CollectionClass::getProto(this->context()).setPrototype(shapeProto);
+            shapesModule.addExport("Circle", CircleClass::getConstructor(this->context()));
+            CircleClass::getProto(this->context()).setPrototype(shapeProto);
+            shapesModule.addExport("Rectangle", RectangleClass::getConstructor(this->context()));
+            RectangleClass::getProto(this->context()).setPrototype(shapeProto);
+            shapesModule.addExport("Polygon", PolygonClass::getConstructor(this->context()));
+            PolygonClass::getProto(this->context()).setPrototype(shapeProto);
+            shapesModule.addExport("LineSegment", LineSegmentClass::getConstructor(this->context()));
+            LineSegmentClass::getProto(this->context()).setPrototype(shapeProto);
+            shapesModule.addExport("Point", PointClass::getConstructor(this->context()));
+            PointClass::getProto(this->context()).setPrototype(shapeProto);
+            shapesModule.addExport("RegularPolygon", RegularPolygonClass::getConstructor(this->context()));
+            RegularPolygonClass::getProto(this->context()).setPrototype(shapeProto);
+        });
     }
 };

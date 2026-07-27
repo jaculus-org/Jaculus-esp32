@@ -442,31 +442,31 @@ public:
     void initialize() {
         Next::initialize();
 
-        auto& mod = this->newModule("serial");
+        this->newModule("serial", [this](jac::Module& mod) {
+            jac::Object parity = jac::Object::create(this->context());
+            parity.defineProperty("None", jac::Value::from(this->context(), static_cast<int>(UART_PARITY_DISABLE)), jac::PropFlags::Enumerable);
+            parity.defineProperty("Even", jac::Value::from(this->context(), static_cast<int>(UART_PARITY_EVEN)), jac::PropFlags::Enumerable);
+            parity.defineProperty("Odd", jac::Value::from(this->context(), static_cast<int>(UART_PARITY_ODD)), jac::PropFlags::Enumerable);
 
-        jac::Object parity = jac::Object::create(this->context());
-        parity.defineProperty("None", jac::Value::from(this->context(), static_cast<int>(UART_PARITY_DISABLE)), jac::PropFlags::Enumerable);
-        parity.defineProperty("Even", jac::Value::from(this->context(), static_cast<int>(UART_PARITY_EVEN)), jac::PropFlags::Enumerable);
-        parity.defineProperty("Odd", jac::Value::from(this->context(), static_cast<int>(UART_PARITY_ODD)), jac::PropFlags::Enumerable);
+            jac::Object stopBits = jac::Object::create(this->context());
+            stopBits.defineProperty("One", jac::Value::from(this->context(), static_cast<int>(UART_STOP_BITS_1)), jac::PropFlags::Enumerable);
+            stopBits.defineProperty("Two", jac::Value::from(this->context(), static_cast<int>(UART_STOP_BITS_2)), jac::PropFlags::Enumerable);
 
-        jac::Object stopBits = jac::Object::create(this->context());
-        stopBits.defineProperty("One", jac::Value::from(this->context(), static_cast<int>(UART_STOP_BITS_1)), jac::PropFlags::Enumerable);
-        stopBits.defineProperty("Two", jac::Value::from(this->context(), static_cast<int>(UART_STOP_BITS_2)), jac::PropFlags::Enumerable);
+            jac::Object dataBits = jac::Object::create(this->context());
+            dataBits.defineProperty("Five", jac::Value::from(this->context(), static_cast<int>(UART_DATA_5_BITS)), jac::PropFlags::Enumerable);
+            dataBits.defineProperty("Six", jac::Value::from(this->context(), static_cast<int>(UART_DATA_6_BITS)), jac::PropFlags::Enumerable);
+            dataBits.defineProperty("Seven", jac::Value::from(this->context(), static_cast<int>(UART_DATA_7_BITS)), jac::PropFlags::Enumerable);
+            dataBits.defineProperty("Eight", jac::Value::from(this->context(), static_cast<int>(UART_DATA_8_BITS)), jac::PropFlags::Enumerable);
 
-        jac::Object dataBits = jac::Object::create(this->context());
-        dataBits.defineProperty("Five", jac::Value::from(this->context(), static_cast<int>(UART_DATA_5_BITS)), jac::PropFlags::Enumerable);
-        dataBits.defineProperty("Six", jac::Value::from(this->context(), static_cast<int>(UART_DATA_6_BITS)), jac::PropFlags::Enumerable);
-        dataBits.defineProperty("Seven", jac::Value::from(this->context(), static_cast<int>(UART_DATA_7_BITS)), jac::PropFlags::Enumerable);
-        dataBits.defineProperty("Eight", jac::Value::from(this->context(), static_cast<int>(UART_DATA_8_BITS)), jac::PropFlags::Enumerable);
+            mod.addExport("Parity", parity);
+            mod.addExport("StopBits", stopBits);
+            mod.addExport("DataBits", dataBits);
 
-        mod.addExport("Parity", parity);
-        mod.addExport("StopBits", stopBits);
-        mod.addExport("DataBits", dataBits);
-
-        for (int i = 1; i < SOC_UART_HP_NUM; ++i) {
-            jac::Object serial = SerialClass::createInstance(this->context(), new Serial<SerialFeature<Next>>(this, static_cast<uart_port_t>(i))).template to<jac::Object>();
-            _serials.emplace_back(serial);
-            mod.addExport("Serial" + std::to_string(i), std::move(serial));
-        }
+            for (int i = 1; i < SOC_UART_HP_NUM; ++i) {
+                jac::Object serial = SerialClass::createInstance(this->context(), new Serial<SerialFeature<Next>>(this, static_cast<uart_port_t>(i))).template to<jac::Object>();
+                _serials.emplace_back(serial);
+                mod.addExport("Serial" + std::to_string(i), std::move(serial));
+            }
+        });
     }
 };

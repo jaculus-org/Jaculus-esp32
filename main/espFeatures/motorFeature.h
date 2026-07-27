@@ -193,7 +193,7 @@ struct JSDCMotor {
 template<typename Feature>
 class MotorProtoBuilder : public jac::ProtoBuilder::Opaque<JSDCMotor<Feature>>, public jac::ProtoBuilder::Properties, jac::ProtoBuilder::LifetimeHandles {
 public:
-    static JSDCMotor<Feature>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static JSDCMotor<Feature>* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         if (args.size() != 1) {
             throw std::runtime_error("Expected 1 argument");
         }
@@ -242,7 +242,7 @@ public:
             motor.motor->setSpeed(ticksPerSec);
         }), jac::PropFlags::Enumerable);
 
-        proto.defineProperty("move", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) {
+        proto.defineProperty("move", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) {
             auto& motor = *MotorProtoBuilder::getOpaque(ctx, thisVal);
             if (!motor.motor) {
                 throw jac::Exception::create(jac::Exception::Type::InternalError, "Motor is closed");
@@ -357,7 +357,7 @@ public:
             motor.motor->setRawPower(power);
         }), jac::PropFlags::Enumerable);
 
-        proto.defineProperty("stop", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) {
+        proto.defineProperty("stop", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) {
             auto& motor = *MotorProtoBuilder::getOpaque(ctx, thisVal);
             if (!motor.motor) {
                 throw jac::Exception::create(jac::Exception::Type::InternalError, "Motor is closed");
@@ -398,7 +398,7 @@ public:
         }), jac::PropFlags::Enumerable);
     }
 
-    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, std::vector<jac::ValueWeak> args) {
+    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, jac::ValueVectorWeak args) {
         auto machine = static_cast<Feature*>(JS_GetContextOpaque(ctx));
         machine->registerMotor(thisVal);
     }
@@ -406,7 +406,7 @@ public:
 
 
 struct NonexistentMotorProtoBuilder {
-    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, std::vector<jac::ValueWeak> args) {
+    static void postConstruction(jac::ContextRef ctx, jac::Object thisVal, jac::ValueVectorWeak args) {
         throw jac::Exception::create(jac::Exception::Type::InternalError, "Motor driver is not available on this device");
     }
 };
@@ -454,10 +454,11 @@ public:
     void initialize() {
         Next::initialize();
 
-        auto& mod = this->newModule("motor");
+        this->newModule("motor", [this](jac::Module& mod) {
 
-        jac::Object motorCtor = MotorClass::getConstructor(this->context());
+            jac::Object motorCtor = MotorClass::getConstructor(this->context());
 
-        mod.addExport("Motor", motorCtor);
+            mod.addExport("Motor", motorCtor);
+        });
     }
 };

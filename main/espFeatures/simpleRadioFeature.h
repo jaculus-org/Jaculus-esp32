@@ -113,91 +113,91 @@ public:
     void initialize() {
         Next::initialize();
 
-        jac::FunctionFactory ff(this->context());
+        this->newModule("simpleradio", [this](jac::Module& simpleradioModule) {
+            jac::FunctionFactory ff(this->context());
 
-        jac::Module& simpleradioModule = this->newModule("simpleradio");
-
-        simpleradioModule.addExport("begin", ff.newFunction(noal::function([](int group) {
-            auto config = SimpleRadio.DEFAULT_CONFIG;
-            config.init_nvs = false;  // Jaculus-Esp32 initializes it
-            wifi_mode_t wifiMode = WIFI_MODE_NULL;
-            if (esp_wifi_get_mode(&wifiMode) == ESP_OK) {
-                config.init_netif = false;
-                config.init_event_loop = false;
-                config.init_wifi = false;
-                config.channel = 0;
-            }
-            esp_err_t err = SimpleRadio.begin(group, config);
-            if (err != ESP_OK) {
-                throw std::runtime_error("Failed to initialize SimpleRadio: " + std::to_string(err));
-            }
-        })));
-        simpleradioModule.addExport("setGroup", ff.newFunction(noal::function([](int group) { SimpleRadio.setGroup(group); })));
-        simpleradioModule.addExport("group", ff.newFunction(noal::function([]() -> int { return SimpleRadio.group(); })));
-        simpleradioModule.addExport("address", ff.newFunction(noal::function([]() -> EspBdAddress {
-            EspBdAddress res;
-            SimpleRadio.address(res.data());
-            return res;
-        })));
-        simpleradioModule.addExport("sendString", ff.newFunction(noal::function([](std::string str) { SimpleRadio.sendString(str); })));
-        simpleradioModule.addExport("sendNumber", ff.newFunction(noal::function([](double num) { SimpleRadio.sendNumber(num); })));
-        simpleradioModule.addExport("sendKeyValue", ff.newFunction(noal::function([](std::string key, double value) {
-            SimpleRadio.sendKeyValue(key, value);
-        })));
-        simpleradioModule.addExport("sendBlob", ff.newFunction(noal::function([this](jac::Value data) {
-            auto dataVec = this->toStdVector(data);
-            SimpleRadio.sendBlob(dataVec);
-        })));
-        simpleradioModule.addExport("on", ff.newFunction(noal::function([this](PacketDataType type, jac::Function callback) {
-            switch (type) {
-            case PacketDataType::Number:
-                SimpleRadio.setOnNumberCallback([this, callback](double num, PacketInfo info) mutable {
-                    this->scheduleEvent([callback, num, info]() mutable {
-                        callback.call<void>(num, info);
+            simpleradioModule.addExport("begin", ff.newFunction(noal::function([](int group) {
+                auto config = SimpleRadio.DEFAULT_CONFIG;
+                config.init_nvs = false;  // Jaculus-Esp32 initializes it
+                wifi_mode_t wifiMode = WIFI_MODE_NULL;
+                if (esp_wifi_get_mode(&wifiMode) == ESP_OK) {
+                    config.init_netif = false;
+                    config.init_event_loop = false;
+                    config.init_wifi = false;
+                    config.channel = 0;
+                }
+                esp_err_t err = SimpleRadio.begin(group, config);
+                if (err != ESP_OK) {
+                    throw std::runtime_error("Failed to initialize SimpleRadio: " + std::to_string(err));
+                }
+            })));
+            simpleradioModule.addExport("setGroup", ff.newFunction(noal::function([](int group) { SimpleRadio.setGroup(group); })));
+            simpleradioModule.addExport("group", ff.newFunction(noal::function([]() -> int { return SimpleRadio.group(); })));
+            simpleradioModule.addExport("address", ff.newFunction(noal::function([]() -> EspBdAddress {
+                EspBdAddress res;
+                SimpleRadio.address(res.data());
+                return res;
+            })));
+            simpleradioModule.addExport("sendString", ff.newFunction(noal::function([](std::string str) { SimpleRadio.sendString(str); })));
+            simpleradioModule.addExport("sendNumber", ff.newFunction(noal::function([](double num) { SimpleRadio.sendNumber(num); })));
+            simpleradioModule.addExport("sendKeyValue", ff.newFunction(noal::function([](std::string key, double value) {
+                SimpleRadio.sendKeyValue(key, value);
+            })));
+            simpleradioModule.addExport("sendBlob", ff.newFunction(noal::function([this](jac::Value data) {
+                auto dataVec = this->toStdVector(data);
+                SimpleRadio.sendBlob(dataVec);
+            })));
+            simpleradioModule.addExport("on", ff.newFunction(noal::function([this](PacketDataType type, jac::Function callback) {
+                switch (type) {
+                case PacketDataType::Number:
+                    SimpleRadio.setOnNumberCallback([this, callback](double num, PacketInfo info) mutable {
+                        this->scheduleEvent([callback, num, info]() mutable {
+                            callback.call<void>(num, info);
+                        });
                     });
-                });
-                break;
-            case PacketDataType::String:
-                SimpleRadio.setOnStringCallback([this, callback](std::string str, PacketInfo info) mutable {
-                    this->scheduleEvent([callback, str, info]() mutable {
-                        callback.call<void>(str, info);
+                    break;
+                case PacketDataType::String:
+                    SimpleRadio.setOnStringCallback([this, callback](std::string str, PacketInfo info) mutable {
+                        this->scheduleEvent([callback, str, info]() mutable {
+                            callback.call<void>(str, info);
+                        });
                     });
-                });
-                break;
-            case PacketDataType::KeyValue:
-                SimpleRadio.setOnKeyValueCallback([this, callback](std::string key, double value, PacketInfo info) mutable {
-                    this->scheduleEvent([callback, key, value, info]() mutable {
-                        callback.call<void>(key, value, info);
+                    break;
+                case PacketDataType::KeyValue:
+                    SimpleRadio.setOnKeyValueCallback([this, callback](std::string key, double value, PacketInfo info) mutable {
+                        this->scheduleEvent([callback, key, value, info]() mutable {
+                            callback.call<void>(key, value, info);
+                        });
                     });
-                });
-                break;
-            case PacketDataType::Blob:
-                SimpleRadio.setOnBlobCallback([this, callback](std::span<const uint8_t> data, PacketInfo info) mutable {
-                    auto dataVec = std::vector<uint8_t>(data.begin(), data.end());
-                    this->scheduleEvent([this, callback, data = std::move(dataVec), info]() mutable {
-                        callback.call<void>(this->toUint8Array(std::move(data)), info);
+                    break;
+                case PacketDataType::Blob:
+                    SimpleRadio.setOnBlobCallback([this, callback](std::span<const uint8_t> data, PacketInfo info) mutable {
+                        auto dataVec = std::vector<uint8_t>(data.begin(), data.end());
+                        this->scheduleEvent([this, callback, data = std::move(dataVec), info]() mutable {
+                            callback.call<void>(this->toUint8Array(std::move(data)), info);
+                        });
                     });
-                });
-                break;
-            }
-        })));
-        simpleradioModule.addExport("off", ff.newFunction(noal::function([](PacketDataType type) {
-            switch (type) {
-            case PacketDataType::Number:
-                SimpleRadio.setOnNumberCallback(nullptr);
-                break;
-            case PacketDataType::String:
-                SimpleRadio.setOnStringCallback(nullptr);
-                break;
-            case PacketDataType::KeyValue:
-                SimpleRadio.setOnKeyValueCallback(nullptr);
-                break;
-            case PacketDataType::Blob:
-                SimpleRadio.setOnBlobCallback(nullptr);
-                break;
-            }
-        })));
-        simpleradioModule.addExport("end", ff.newFunction(noal::function([]() { SimpleRadio.end(); })));
+                    break;
+                }
+            })));
+            simpleradioModule.addExport("off", ff.newFunction(noal::function([](PacketDataType type) {
+                switch (type) {
+                case PacketDataType::Number:
+                    SimpleRadio.setOnNumberCallback(nullptr);
+                    break;
+                case PacketDataType::String:
+                    SimpleRadio.setOnStringCallback(nullptr);
+                    break;
+                case PacketDataType::KeyValue:
+                    SimpleRadio.setOnKeyValueCallback(nullptr);
+                    break;
+                case PacketDataType::Blob:
+                    SimpleRadio.setOnBlobCallback(nullptr);
+                    break;
+                }
+            })));
+            simpleradioModule.addExport("end", ff.newFunction(noal::function([]() { SimpleRadio.end(); })));
+        });
     }
 
     ~SimpleRadioFeature() {

@@ -209,7 +209,7 @@ public:
 
 template<class UdpFeature>
 struct UdpSocketProtoBuilder : public jac::ProtoBuilder::Opaque<UdpSocket<UdpFeature>>, public jac::ProtoBuilder::Properties {
-    static UdpSocket<UdpFeature>* constructOpaque(jac::ContextRef ctx, std::vector<jac::ValueWeak> args) {
+    static UdpSocket<UdpFeature>* constructOpaque(jac::ContextRef ctx, jac::ValueVectorWeak args) {
         if (args.size() != 1) {
             throw jac::Exception::create(jac::Exception::Type::TypeError, "Expected exactly one argument");
         }
@@ -269,7 +269,7 @@ struct UdpSocketProtoBuilder : public jac::ProtoBuilder::Opaque<UdpSocket<UdpFea
             return res;
         }));
 
-        proto.defineProperty("write", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, std::vector<jac::ValueWeak> args) {
+        proto.defineProperty("write", ff.newFunctionThisVariadic([](jac::ContextRef ctx, jac::ValueWeak thisVal, jac::ValueVectorWeak args) {
             if (args.size() != 3) {
                 throw jac::Exception::create(jac::Exception::Type::TypeError, "Expected three arguments");
             }
@@ -299,8 +299,9 @@ public:
     void initialize() {
         Next::initialize();
 
-        jac::Function ctor = UdpSocketClass::getConstructor(this->context());
-        jac::Module& mod = this->newModule("udp");
-        mod.addExport("UdpSocket", ctor);
+        this->newModule("udp", [this](jac::Module& mod) {
+            jac::Function ctor = UdpSocketClass::getConstructor(this->context());
+            mod.addExport("UdpSocket", ctor);
+        });
     }
 };
