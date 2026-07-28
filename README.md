@@ -1,8 +1,8 @@
 # Jaculus-esp32
 
-Jaculus allows you to run JavaScript code on embedded devices. This is a version for the ESP32 platform with support for ESP32-S3, ESP32 and ESP32-C3 SOCs.
+Jaculus allows you to run JavaScript code on embedded devices. This is a version for the ESP32 platform with support for ESP32-S3, ESP32, ESP32-C3 and ESP32-C6 SoCs.
 
-ESP32-S3 with PSRAM is recommended. Boards without PSRAM are not very stable and ESP32 and ESP32-C3 are esperimental and not very well tested.
+ESP32-S3 with PSRAM is recommended. Boards with less RAM are less stable; ESP32, ESP32-C3 and ESP32-C6 support is experimental and not very well tested. Please report any issues you encounter.
 
 ## Usage
 

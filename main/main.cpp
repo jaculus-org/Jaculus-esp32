@@ -55,7 +55,7 @@
 #include "nvs_flash.h"
 
 
-#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
+#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     #include "util/jtagStream.h"
 #endif
 
@@ -66,6 +66,8 @@
     #include "platform/esp32s3.h"
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
     #include "platform/esp32c3.h"
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    #include "platform/esp32c6.h"
 #endif
 
 wl_handle_t storage_wl_handle = WL_INVALID_HANDLE;
@@ -140,7 +142,7 @@ using Mux_t = jac::Mux<jac::CobsEncoder>;
 std::unique_ptr<Mux_t> muxUart;
 std::unique_ptr<Mux_t> muxTcp;
 
-#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
+#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     std::unique_ptr<Mux_t> muxJtag;
 #endif
 
@@ -207,7 +209,7 @@ int main() {
     auto handleUart = device.router().subscribeTx(1, *muxUart);
     muxUart->bindRx(std::make_unique<decltype(handleUart)>(std::move(handleUart)));
 
-#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
+#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     // initialize usb connection
     auto jtagStream = std::make_unique<JtagStream>(4096, 1024);
     jtagStream->start();
