@@ -159,12 +159,14 @@ class Gpio {
 
     GpioFeature* _feature;
     std::atomic<bool> stopShovel{false};
+    std::atomic<bool> shovelStopped{false};
 
     static void shovel(void* pvParameters) {
         auto& gpio = *static_cast<Gpio*>(pvParameters);
         while (true) {
             auto res = xTaskNotifyWait(pdFALSE, ULONG_MAX, nullptr, portMAX_DELAY);
             if (gpio.stopShovel) {
+                gpio.shovelStopped = true;
                 vTaskDelete(nullptr);
                 return;
             }
@@ -205,11 +207,7 @@ public:
         stopShovel = true;
         if (_holder->shovelTaskHandle) {
             xTaskNotify(_holder->shovelTaskHandle, 0, eNoAction);
-            while (true) {
-                eTaskState state = eTaskGetState(_holder->shovelTaskHandle);
-                if (state == eDeleted || state == eInvalid) {
-                    break;
-                }
+            while (!shovelStopped) {
                 vTaskDelay(10 / portTICK_PERIOD_MS);
             }
         }
