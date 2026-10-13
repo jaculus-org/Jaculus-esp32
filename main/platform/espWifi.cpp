@@ -9,7 +9,7 @@
 EspWifiController::EspWifiController() :
         _mode(Mode::DISABLED),
         _staMode(StaMode::BEST_SIGNAL),
-        _apFallback(true),
+        _apFallback(false),
         _currentIp({}),
         _eventLoopOurs(false),
         _handler_wifi(nullptr),
@@ -36,7 +36,7 @@ bool EspWifiController::initialize() {
 
     _staMode = static_cast<StaMode>(kvMain->getInt(KeyWifiStaMode, StaMode::BEST_SIGNAL));
 
-    _apFallback = kvMain->getInt(KeyWifiStaApFallback, 1) != 0;
+    _apFallback = kvMain->getInt(KeyWifiStaApFallback, 0) != 0;
 
     return switchMode(static_cast<Mode>(kvMain->getInt(KeyWifiMode, Mode::DISABLED)), std::move(kvMain));
 }
