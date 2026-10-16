@@ -31,6 +31,7 @@
 #include "espFeatures/serialFeature.h"
 #include "espFeatures/simpleRadioFeature.h"
 #include "espFeatures/smartLedFeature.h"
+#include "espFeatures/stackLimitFeature.h"
 #include "espFeatures/timestampFeature.h"
 #include "espFeatures/udpSocketFeature.h"
 #include "espFeatures/wifiFeature.h"
@@ -102,6 +103,7 @@ using Machine = jac::ComposeMachine<
     jac::KeyValueFeature,
     SelectFeature,
     UdpSocketFeature,
+    StackLimitFeature,
     jac::EventLoopTerminal
 >;
 
@@ -135,7 +137,23 @@ jac::Device<Machine> device(
     { // resources
         {"ts-examples", resources::tsExamplesTgz}
     },
-    EspNvsKeyValue::open
+    EspNvsKeyValue::open,
+    [](std::function<void()> f) {  // create machine thread
+        esp_pthread_cfg_t prev;
+        bool hasPrev = esp_pthread_get_cfg(&prev) == ESP_OK;
+
+        esp_pthread_cfg_t cfg = hasPrev ? prev : esp_pthread_get_default_config();
+        cfg.stack_size = 24 * 1024;
+        cfg.thread_name = "machine";
+        esp_pthread_set_cfg(&cfg);
+
+        std::thread t(std::move(f));
+
+        if (hasPrev) {
+            esp_pthread_set_cfg(&prev);
+        }
+        return t;
+    }
 );
 
 using Mux_t = jac::Mux<jac::CobsEncoder>;
@@ -241,6 +259,7 @@ int main() {
 
         machine.kvOpener = device.getKeyValueOpener();
         machine.setMallocFunctions(&JsEspMallocFunctions<MALLOC_CAP_DEFAULT>::js_esp_malloc_functions);
+        machine.jsStackMargin = 8 * 1024;
 
         esp_pthread_cfg_t cfg = esp_pthread_get_default_config();
         cfg.stack_size = 4 * 1024;
